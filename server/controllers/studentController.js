@@ -198,7 +198,7 @@ exports.forgotPassword = async (req, res) => {
     // 📩 SendGrid Email
     const message = {
       to: student.email,
-      from: process.env.SENDGRID_SENDER,
+      from: process.env.EMAIL_FROM,
       subject: "CTU Enrollment – Password Reset Request",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 15px; color: #333;">

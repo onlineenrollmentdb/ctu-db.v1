@@ -34,7 +34,7 @@ exports.sendNotification = async ({
     // Optional: send email
     if (email) {
         await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+            from: process.env.EMAIL_FROM,
             to: email,
             subject: title,
             text: message,
