@@ -2,6 +2,21 @@
    MODERN ENROLLMENT TRACKER DESIGN
 --------------------------------------- */
 
+:root {
+  --circle-size: 90px;
+  --circle-bg: linear-gradient(145deg, #ffffff, #f3f3f3);
+  --circle-shadow: 4px 4px 10px rgba(0,0,0,0.15), -4px -4px 10px rgba(255,255,255,0.9);
+  --completed-bg: linear-gradient(145deg, #d7ffd7, #bff0bf);
+  --completed-shadow: 0 0 18px rgba(76,175,80,0.35);
+  --active-bg: linear-gradient(145deg, #c7bdfc, #93a0ec);
+  --connector-bg: rgba(0,0,0,0.15);
+  --connector-done: linear-gradient(90deg, #4caf50, #81c784);
+  --dropdown-bg: rgba(255,255,255,0.85);
+  --primary-color: #4caf50;
+  --label-color: #fff;
+}
+
+/* Tracker container */
 .horizontal-tracker {
   display: flex;
   justify-content: space-evenly;
@@ -10,37 +25,47 @@
   padding-top: 2rem;
   gap: 3rem;
   box-sizing: border-box;
+  user-select: none;
 }
 
-/* Each Step */
+/* Step container */
 .step {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  transition: transform 0.25s ease;
 }
 
-/* ---------------------------------------
-   ICON CIRCLE
---------------------------------------- */
+/* Label */
+.step-label {
+  color: var(--label-color);
+  margin-top: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  z-index: 3;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+/* Icon Circle */
 .circle {
-  width: 90px;
-  height: 90px;
-  background: linear-gradient(145deg, #ffffff, #f3f3f3);
+  width: var(--circle-size);
+  height: var(--circle-size);
+  background: var(--circle-bg);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    4px 4px 10px rgba(0,0,0,0.15),
-    -4px -4px 10px rgba(255,255,255,0.9);
+  box-shadow: var(--circle-shadow);
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.3s ease;
   z-index: 3;
 }
 
 .circle:hover {
-  transform: translateY(-4px) scale(1.05);
+  transform: translateY(-5px) scale(1.08);
+  box-shadow: 6px 6px 12px rgba(0,0,0,0.2), -6px -6px 12px rgba(255,255,255,0.95);
 }
 
 .circle img {
@@ -49,15 +74,15 @@
   object-fit: contain;
 }
 
-/* Completed Glow */
+/* Completed circle */
 .circle.completed {
-  background: linear-gradient(145deg, #d7ffd7, #bff0bf);
-  box-shadow: 0 0 18px rgba(76,175,80,0.35);
+  background: var(--completed-bg);
+  box-shadow: var(--completed-shadow);
 }
 
-/* Active Pulse */
+/* Active circle */
 .circle.active {
-  background: linear-gradient(145deg, #c7bdfc, #93a0ec);
+  background: var(--active-bg);
   animation: activePulse 1.8s ease-in-out infinite;
 }
 
@@ -66,26 +91,21 @@
   50% { transform: scale(1.12); }
 }
 
-/* ---------------------------------------
-   DROPDOWN
---------------------------------------- */
+/* Dropdown Box */
 .step-dropdown {
   position: absolute;
-  top: 120px;
+  top: calc(var(--circle-size) + 20px);
   left: 50%;
   transform: translateX(-50%) scale(0.85);
   opacity: 0;
   pointer-events: none;
-
   width: 240px;
   padding: 14px 18px;
-
-  background: rgba(255,255,255,0.85);
+  background: var(--dropdown-bg);
   backdrop-filter: blur(12px);
   border-radius: 14px;
   border: 1px solid rgba(0,0,0,0.1);
   box-shadow: 0 12px 25px rgba(0,0,0,0.15);
-
   transition: all 0.25s ease;
 }
 
@@ -101,32 +121,35 @@
   font-weight: 600;
   text-decoration: underline;
   color: var(--primary-color);
+  transition: color 0.25s ease;
 }
 
-/* ---------------------------------------
-   FIXED DESKTOP CONNECTOR (HORIZONTAL)
---------------------------------------- */
+.step-link:hover {
+  color: #388e3c;
+}
+
+/* Connector */
 .connector {
   position: absolute;
-  top: 45px;          /* middle of the circle */
-  right: -90px;      /* push line to the right */
+  top: 45px;
+  right: -90px;
   width: 90px;
   height: 4px;
-  background: rgba(0,0,0,0.15);
+  background: var(--connector-bg);
   border-radius: 4px;
   z-index: 1;
+  transition: background 0.3s ease;
 }
 
 .connector.done {
-  background: linear-gradient(90deg, #4caf50, #81c784);
+  background: var(--connector-done);
 }
 
 .step:last-child .connector {
   display: none;
 }
-/* ---------------------------------------
-   MOBILE VIEW
---------------------------------------- */
+
+/* Mobile View */
 @media (max-width: 600px) {
   .horizontal-tracker {
     flex-direction: column;
@@ -138,24 +161,22 @@
     height: 100px;
   }
 
-  /* Vertical connector */
   .connector {
     position: absolute;
     top: 100px;
     left: 50%;
     transform: translateX(-50%);
     width: 4px;
-    height: 150px;
+    height: 180px;
   }
 
   .connector.done {
     background: linear-gradient(#4caf50, #81c784);
   }
 
-  /* Dropdown stays hidden until clicked */
   .step-dropdown {
     position: relative;
-    top: 20px;
+    top: 10px;
     left: 0;
     transform: scale(0.85);
   }

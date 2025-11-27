@@ -19,7 +19,9 @@ require("dotenv").config();
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+// --------------------
 // Step 1: Login → send 2FA code
+// --------------------
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -35,45 +37,35 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, admin.admin_pass);
     if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
-    // Generate 2FA code
+    // Generate 6-digit 2FA code
     const code = crypto.randomInt(100000, 999999).toString();
 
-    // Save code & expiry (5 minutes)
+    // Save 2FA code & expiry (UTC)
     await db.execute(
-      "UPDATE admin SET two_fa_code = ?, two_fa_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE admin_id = ?",
+      "UPDATE admin SET two_fa_code = ?, two_fa_expires = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 5 MINUTE) WHERE admin_id = ?",
       [code, admin.admin_id]
     );
 
-    // Send 2FA code via SendGrid
+    // Send email
     const msg = {
       to: admin.email,
       from: process.env.EMAIL_FROM,
-      subject: "🔒 CTU Enrollment 2FA Verification Code",
+      subject: "🔒 CTU Enrollment 2FA Code",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #333;">CTU Enrollment System</h2>
-          <p>Hello <strong>${admin.admin_user}</strong>,</p>
-          <p>Your 2FA verification code is:</p>
-          <h1 style="color: #1a73e8;">${code}</h1>
-          <p>This code will expire in 5 minutes.</p>
-          <p>Do not share this code with anyone.</p>
-          <hr/>
-          <p style="font-size: 12px; color: #999;">CTU Enrollment &copy; ${new Date().getFullYear()}</p>
-        </div>
+        <h3>Hello ${admin.admin_user}</h3>
+        <p>Your 2FA code is:</p>
+        <h1>${code}</h1>
+        <p>Valid for 5 minutes.</p>
       `
     };
 
-    // Send email asynchronously
-    sgMail.send(msg).then(() => {
-      console.log('2FA email sent via SendGrid');
-    }).catch(err => {
-      console.error('SendGrid email error:', err);
-    });
+    await sgMail.send(msg);
 
+    // Return admin_id to frontend
     res.json({
       require2FA: true,
       message: "2FA code sent to your email.",
-      admin_id: admin.admin_id,
+      admin_id: admin.admin_id
     });
   } catch (err) {
     console.error("Admin login error:", err);
@@ -81,7 +73,9 @@ exports.login = async (req, res) => {
   }
 };
 
-// ✅ Step 2: Verify 2FA code → return JWT
+// --------------------
+// Step 2: Verify 2FA
+// --------------------
 exports.verify2FA = async (req, res) => {
   try {
     const { admin_id, code } = req.body;
@@ -90,7 +84,7 @@ exports.verify2FA = async (req, res) => {
       return res.status(400).json({ error: "Admin ID and code are required" });
 
     const [rows] = await db.execute(
-      "SELECT * FROM admin WHERE admin_id = ? AND two_fa_code = ? AND two_fa_expires > NOW()",
+      "SELECT * FROM admin WHERE admin_id = ? AND TRIM(two_fa_code) = ? AND two_fa_expires > UTC_TIMESTAMP()",
       [admin_id, code]
     );
 
@@ -115,7 +109,7 @@ exports.verify2FA = async (req, res) => {
     res.json({
       message: "2FA verified successfully",
       token,
-      admin: { id: admin.admin_id, username: admin.admin_user },
+      admin: { id: admin.admin_id, username: admin.admin_user }
     });
   } catch (err) {
     console.error("verify2FA error:", err);
@@ -123,6 +117,56 @@ exports.verify2FA = async (req, res) => {
   }
 };
 
+// --------------------
+// Resend 2FA
+// --------------------
+exports.resend2FA = async (req, res) => {
+  try {
+    const { admin_id } = req.body;
+    if (!admin_id) return res.status(400).json({ error: "Admin ID required" });
+
+    // 1️⃣ Fetch admin
+    const [rows] = await db.execute("SELECT * FROM admin WHERE admin_id = ?", [admin_id]);
+    if (!rows.length) return res.status(404).json({ error: "Admin not found" });
+
+    const admin = rows[0];
+
+    // 2️⃣ Generate new 2FA code (6-digit)
+    const code = crypto.randomInt(100000, 999999).toString();
+
+    // 3️⃣ Save code & expiry (5 minutes)
+    await db.execute(
+      "UPDATE admin SET two_fa_code = ?, two_fa_expires = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 5 MINUTE) WHERE admin_id = ?",
+      [code, admin_id]
+    );
+
+    // 4️⃣ Send 2FA code via SendGrid
+    const msg = {
+      to: admin.email,
+      from: process.env.EMAIL_FROM, // must be verified in SendGrid
+      subject: "🔁 CTU Enrollment 2FA Code (Resent)",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2>Hello ${admin.admin_user}</h2>
+          <p>Your new 2FA verification code is:</p>
+          <h1 style="color: #1a73e8;">${code}</h1>
+          <p>This code is valid for 5 minutes. Do not share it with anyone.</p>
+          <hr/>
+          <p style="font-size: 12px; color: #999;">CTU Enrollment &copy; ${new Date().getFullYear()}</p>
+        </div>
+      `
+    };
+
+    // Await sending email so we can catch errors
+    await sgMail.send(msg);
+
+    res.json({ message: "2FA code resent successfully" });
+
+  } catch (err) {
+    console.error("resend2FA error:", err.response?.body || err);
+    res.status(500).json({ error: "Failed to resend 2FA code" });
+  }
+};
 
 /* -------------------------------------------------------------------------- */
 /*                             🎓 STUDENT HANDLERS                            */
@@ -282,79 +326,93 @@ exports.approveStudent = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 exports.confirmEnrollment = async (req, res) => {
-	const { enrollment_id } = req.params;
+    const { enrollment_id } = req.params;
 
-	try {
-		await db.execute(
-			"UPDATE enrollments SET enrollment_status = 2 WHERE enrollment_id = ?",
-			[enrollment_id]
-		);
+    try {
+        // Update enrollment status to 3
+        await db.execute(
+            "UPDATE enrollments SET enrollment_status = 3 WHERE enrollment_id = ?",
+            [enrollment_id]
+        );
 
-		const [[row]] = await db.execute(
-			`SELECT s.email, s.student_id
-			 FROM enrollments e
-			 JOIN students s ON s.student_id = e.student_id
-			 WHERE e.enrollment_id = ?`,
-			[enrollment_id]
-		);
+        // Get student info
+        const [[row]] = await db.execute(
+            `SELECT s.email, s.student_id
+             FROM enrollments e
+             JOIN students s ON s.student_id = e.student_id
+             WHERE e.enrollment_id = ?`,
+            [enrollment_id]
+        );
 
-		await db.execute("UPDATE students SET is_enrolled = 1 WHERE student_id = ?", [
-			row.student_id,
-		]);
+        // Mark student as enrolled
+        await db.execute("UPDATE students SET is_enrolled = 1 WHERE student_id = ?", [
+            row.student_id,
+        ]);
 
-		await sendNotification({
-			user_type: "student",
-			user_id: row.student_id,
-			title: "Enrollment Confirmed",
-			message: "Your enrollment request has been confirmed.",
-			type: "enrollment",
-			link: "/enrollment",
-			email: row.email,
-		});
+        // Send notification
+        await sendNotification({
+            user_type: "student",
+            user_id: row.student_id,
+            title: "Enrollment Confirmed",
+            message: "Your enrollment request has been confirmed.",
+            type: "enrollment",
+            link: "/enrollment",
+            email: row.email,
+        });
 
-		res.json({ message: "Enrollment confirmed successfully." });
-	} catch (err) {
-		console.error("confirmEnrollment error:", err);
-		res.status(500).json({ error: "Failed to confirm enrollment" });
-	}
+        res.json({ message: "Enrollment confirmed successfully." });
+    } catch (err) {
+        console.error("confirmEnrollment error:", err);
+        res.status(500).json({ error: "Failed to confirm enrollment" });
+    }
 };
 
 exports.revokeEnrollment = async (req, res) => {
-	const { enrollment_id } = req.params;
+    const { enrollment_id } = req.params;
 
-	try {
-		await db.execute(
-			"UPDATE enrollments SET enrollment_status = 1 WHERE enrollment_id = ?",
-			[enrollment_id]
-		);
+    try {
+        // Revoke enrollment status to 1
+        await db.execute(
+            "UPDATE enrollments SET enrollment_status = 1 WHERE enrollment_id = ?",
+            [enrollment_id]
+        );
 
-		const [[row]] = await db.execute(
-			`SELECT s.email, s.student_id
-			 FROM enrollments e
-			 JOIN students s ON s.student_id = e.student_id
-			 WHERE e.enrollment_id = ?`,
-			[enrollment_id]
-		);
+        // Delete all subjects linked to this enrollment
+        await db.execute(
+            "DELETE FROM enrollment_subjects WHERE enrollment_id = ?",
+            [enrollment_id]
+        );
 
-		await db.execute("UPDATE students SET is_enrolled = 0 WHERE student_id = ?", [
-			row.student_id,
-		]);
+        // Get student info
+        const [[row]] = await db.execute(
+            `SELECT s.email, s.student_id
+             FROM enrollments e
+             JOIN students s ON s.student_id = e.student_id
+             WHERE e.enrollment_id = ?`,
+            [enrollment_id]
+        );
 
-		await sendNotification({
-			user_type: "student",
-			user_id: row.student_id,
-			title: "Enrollment Revoked",
-			message: "Your enrollment has been revoked by the administrator.",
-			type: "enrollment",
-			link: "/enrollment",
-			email: row.email,
-		});
+        // Mark student as not enrolled
+        await db.execute("UPDATE students SET is_enrolled = 0 WHERE student_id = ?", [
+            row.student_id,
+        ]);
 
-		res.json({ message: "Enrollment revoked successfully." });
-	} catch (err) {
-		console.error("revokeEnrollment error:", err);
-		res.status(500).json({ error: "Failed to revoke enrollment" });
-	}
+        // Send notification
+        await sendNotification({
+            user_type: "student",
+            user_id: row.student_id,
+            title: "Enrollment Revoked",
+            message: "Your enrollment has been revoked by the administrator.",
+            type: "enrollment",
+            link: "/enrollment",
+            email: row.email,
+        });
+
+        res.json({ message: "Enrollment revoked successfully." });
+    } catch (err) {
+        console.error("revokeEnrollment error:", err);
+        res.status(500).json({ error: "Failed to revoke enrollment" });
+    }
 };
 
 /* -------------------------------------------------------------------------- */

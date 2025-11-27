@@ -5,11 +5,10 @@ const settingsController = require("./settingsController");
 // Enrollment status cache (5 minutes)
 let enrollmentStatusCache = {
   data: {},
-  ttl: 5 * 60 * 1000
+  ttl: 1 * 60 * 1000,
 };
 
-
-// ✅ Enroll a student (with total_units calculated on backend)
+// ✅ Enroll a student
 exports.enrollStudent = async (req, res) => {
   const { student_id, semester, academic_year, subject_sections } = req.body;
 
@@ -27,10 +26,11 @@ exports.enrollStudent = async (req, res) => {
     );
     if (!student) return res.status(404).json({ error: "Student not found" });
 
-    // 2️⃣ Calculate total units from subjects
+    // 2️⃣ Calculate total units
+    const placeholders = subject_sections.map(() => "?").join(", ");
     const [unitsRows] = await db.execute(
-      `SELECT SUM(units) AS total_units FROM subjects WHERE subject_section IN (?)`,
-      [subject_sections]
+      `SELECT SUM(units) AS total_units FROM subjects WHERE subject_section IN (${placeholders})`,
+      subject_sections
     );
     const total_units = unitsRows[0]?.total_units || 0;
 
@@ -42,43 +42,48 @@ exports.enrollStudent = async (req, res) => {
     );
 
     let enrollment_id;
+    let enrollment_status;
 
     if (existing.length > 0) {
       // 4️⃣ Update existing enrollment
       enrollment_id = existing[0].enrollment_id;
+      enrollment_status = 2; // Submitted
 
       await db.execute(
         `UPDATE enrollments
-         SET enrollment_status = 2, total_units = ?
+         SET enrollment_status = ?, total_units = ?
          WHERE enrollment_id = ?`,
-        [total_units, enrollment_id]
+        [enrollment_status, total_units, enrollment_id]
       );
 
       // 5️⃣ Replace subjects
       await db.execute(`DELETE FROM enrollment_subjects WHERE enrollment_id = ?`, [enrollment_id]);
+
       const values = subject_sections.map(sec => [enrollment_id, sec]);
-      const placeholders = values.map(() => "(?, ?)").join(", ");
+      const placeholdersSubjects = values.map(() => "(?, ?)").join(", ");
       const flatValues = values.flat();
+
       await db.execute(
-        `INSERT INTO enrollment_subjects (enrollment_id, subject_section) VALUES ${placeholders}`,
+        `INSERT INTO enrollment_subjects (enrollment_id, subject_section) VALUES ${placeholdersSubjects}`,
         flatValues
       );
-
     } else {
       // 6️⃣ Insert new enrollment
-      const status = (student.student_status || "").toLowerCase() === "regular" ? 3 : 2;
+      enrollment_status = 2;
+
       const [result] = await db.execute(
         `INSERT INTO enrollments (student_id, enrollment_status, academic_year, semester, total_units)
          VALUES (?, ?, ?, ?, ?)`,
-        [student_id, status, academic_year, semester, total_units]
+        [student_id, enrollment_status, academic_year, semester, total_units]
       );
       enrollment_id = result.insertId;
 
       const values = subject_sections.map(sec => [enrollment_id, sec]);
-      const placeholders = values.map(() => "(?, ?)").join(", ");
+      const placeholdersSubjects = values.map(() => "(?, ?)").join(", ");
       const flatValues = values.flat();
+
       await db.execute(
-        `INSERT INTO enrollment_subjects (enrollment_id, subject_section) VALUES ${placeholders}`,
+        `INSERT INTO enrollment_subjects (enrollment_id, subject_section) VALUES ${placeholdersSubjects}`,
         flatValues
       );
     }
@@ -97,14 +102,32 @@ exports.enrollStudent = async (req, res) => {
       sender_type: "student",
     });
 
+    // 9️⃣ Update cache immediately
+    const cacheKey = `${student_id}-${semester}-${academic_year}`;
+    enrollmentStatusCache.data[cacheKey] = {
+      step: enrollment_status,
+      timestamp: Date.now(),
+    };
+
+    // 10️⃣ Emit socket event
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("enrollment-status-updated", {
+        student_id,
+        enrollment_id,
+        status: enrollment_status,
+      });
+    }
+
     console.log(`[Enroll] Student ${student_id} enrolled. Enrollment ID: ${enrollment_id}`);
 
-    // 9️⃣ Respond
+    // 11️⃣ Respond with updated status
     res.status(201).json({
       message: "Enrollment successful",
       enrollment_id,
       total_units,
       subjectsEnrolled: subject_sections,
+      enrollment_status, // ⚡ new field
     });
 
   } catch (err) {

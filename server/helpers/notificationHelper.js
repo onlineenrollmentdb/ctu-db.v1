@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-        user: process.env.EMAIL_USER,
+        user: process.env.EMAIL_FROM,
         pass: process.env.EMAIL_PASS,
     },
 });
@@ -27,7 +27,7 @@ exports.sendNotification = async ({
     await db.execute(
         `INSERT INTO notifications
             (user_type, user_id, title, message, type, link, sender_id, sender_type, is_read, is_seen, is_deleted, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW())`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW())`,
         [user_type, user_id, title, message, type, link, sender_id, sender_type]
     );
 

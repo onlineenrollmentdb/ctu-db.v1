@@ -7,6 +7,7 @@ const adminController = require("../controllers/adminController");
 // --------------------
 router.post("/login", adminController.login);
 router.post("/verify-2fa", adminController.verify2FA);
+router.post("/resend-2fa", adminController.resend2FA);
 
 // --------------------
 // 🎓 Student Management

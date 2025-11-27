@@ -58,12 +58,6 @@ const HomePage = () => {
 
   if (!student || loading || !settings) return null;
 
-  const steps = [
-    { label: "Clearance", details: "Submit clearance form" },
-    { label: "Enrollment", details: "Fill out enrollment form" },
-    { label: "Processing", details: "Registrar validates documents" },
-    { label: "Enrolled", details: "You are officially enrolled!" },
-  ];
 
   const handleStepClick = (i) => {
     if (i === 1 && student.enrollment_status >= 1) navigate("/enroll");
@@ -84,7 +78,6 @@ const HomePage = () => {
 
           <EnrollmentTracker
             student={student}
-            steps={steps}
             currentStep={currentStep}
             enrollmentStatus={student.enrollment_status}
             onStepClick={handleStepClick}

@@ -103,7 +103,8 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
     if (!selectedStudent) return;
 
     try {
-      await API.post(`admin/students/${selectedStudent.student_id}/${action}`);
+      await API.put(`admin/enrollment/${selectedStudent.enrollment_id}/${action}`);
+
       addToast(`${action === "revoke" ? "Revoked" : "Confirmed"} enrollment successfully ✅`, "success");
 
       // Update local student status if confirmed/revoked

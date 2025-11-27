@@ -11,10 +11,6 @@ export default function AuthPage() {
     const inputRefs = useRef([]);
     const navigate = useNavigate();
     const { login } = useAuth();
-
-    /* -------------------------------
-       ⏲ Countdown Timer
-    -------------------------------- */
     useEffect(() => {
         if (resendTimer <= 0) return;
 
@@ -25,9 +21,6 @@ export default function AuthPage() {
         return () => clearInterval(interval);
     }, [resendTimer]);
 
-    /* -------------------------------
-       🔢 Handle OTP Input
-    -------------------------------- */
     const handleChange = (value, index) => {
         if (!/^[0-9]?$/.test(value)) return;
 
@@ -46,9 +39,6 @@ export default function AuthPage() {
         }
     };
 
-    /* -------------------------------
-       🔐 VERIFY OTP
-    -------------------------------- */
     const handleVerify = async (e) => {
         e.preventDefault();
         setError("");
@@ -91,29 +81,28 @@ export default function AuthPage() {
         }
     };
 
-    /* -------------------------------
-       🔁 RESEND 2FA
-    -------------------------------- */
     const handleResend = async () => {
-        const username = localStorage.getItem("pending_admin_user");
+        setError("");
+        const admin_id = localStorage.getItem("pending_admin_id"); // get stored admin ID
 
-        if (!username) {
+        if (!admin_id) {
             setError("No admin session found.");
             return;
         }
 
         try {
-            await API.post("/admin/login", { username, password: "resend" });
-            setResendTimer(30);
-            setError("");
+            // Call the fixed resend2FA endpoint
+            await API.post("/admin/resend-2fa", { admin_id });
+
+            setResendTimer(30); // restart countdown
+            setError(""); // clear any previous errors
+            alert("2FA code resent successfully. Please check your email.");
+
         } catch (err) {
-            setError("Failed to resend code.");
+            console.error("Resend 2FA error:", err.response?.data || err);
+            setError(err.response?.data?.error || "Failed to resend code.");
         }
     };
-
-    /* -------------------------------
-       UI
-    -------------------------------- */
     return (
         <div className="t-body">
             <div className="container" style={{ maxWidth: 400, marginTop: 50 }}>

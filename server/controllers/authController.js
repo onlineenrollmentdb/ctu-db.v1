@@ -84,11 +84,11 @@ exports.checkStudent = async (req, res) => {
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
-            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+            auth: { user: process.env.EMAIL_FROM, pass: process.env.EMAIL_PASS }
         });
 
         await transporter.sendMail({
-            from: `"CTU Enrollment System" <${process.env.EMAIL_USER}>`,
+            from: `"CTU Enrollment System" <${process.env.EMAIL_FROM}>`,
             to: student.email,
             subject: 'CTU Verification Code',
             text: `Hello ${student.first_name},\n\nYour verification code is: ${code}\n\nThis code will expire in 5 minutes.\n\n- CTU Registrar`

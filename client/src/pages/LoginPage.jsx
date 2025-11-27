@@ -74,7 +74,7 @@ const LoginPage = () => {
     try {
       setLoading(true);
       await API.post("/students/forgot-password", { student_id: userId });
-      addToast("Password reset link sent.", "success");
+      addToast("Password reset link sent to your email (check spam folder).", "success");
     } catch (err) {
       console.error(err);
       addToast(err.response?.data?.error || "Failed to send reset link.", "error");

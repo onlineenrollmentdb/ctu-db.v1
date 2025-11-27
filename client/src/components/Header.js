@@ -279,7 +279,7 @@ useEffect(() => {
       {/* Announcement Modal */}
       {showAnnouncementModal && announcement && (
         <div className="modal-overlay">
-          <div className="modal-content" ref={modalRef}>
+          <div className="modal-content" style={{maxWidth: "400px"}} ref={modalRef}>
             <h5>{announcement.semester} Semester Enrollment</h5>
             <p>
               Starts:{" "}
