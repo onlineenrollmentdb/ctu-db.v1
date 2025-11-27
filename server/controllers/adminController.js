@@ -14,19 +14,17 @@ require("dotenv").config();
 /* -------------------------------------------------------------------------- */
 /*                           📧 EMAIL TRANSPORTER                              */
 /* -------------------------------------------------------------------------- */
-
 const transporter = nodemailer.createTransport({
-	service: "gmail",
-	auth: {
-		user: process.env.EMAIL_USER,
-		pass: process.env.EMAIL_PASS,
-	},
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
 /* -------------------------------------------------------------------------- */
 /*                             🧠 AUTHENTICATION + 2FA                         */
 /* -------------------------------------------------------------------------- */
-
 
 // ✅ Step 1: Login → send 2FA code
 exports.login = async (req, res) => {
@@ -53,13 +51,30 @@ exports.login = async (req, res) => {
       [code, admin.admin_id]
     );
 
-    // Send 2FA code via email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: admin.email,
-      subject: "Your 2FA Verification Code",
-      text: `Your 2FA code is: ${code}. It will expire in 5 minutes.`,
-    });
+    // Send 2FA code via professional-looking email
+    try {
+      await transporter.sendMail({
+        from: `"CTU Enrollment System" <${process.env.EMAIL_USER}>`,
+        to: admin.email,
+        subject: "🔒 Your CTU Admin 2FA Verification Code",
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+            <h2 style="color: #0052cc;">CTU Enrollment System</h2>
+            <p>Hello <strong>${admin.admin_user}</strong>,</p>
+            <p>Your 2FA verification code is:</p>
+            <h1 style="color: #0052cc;">${code}</h1>
+            <p>This code will expire in <strong>5 minutes</strong>.</p>
+            <p>If you did not request this code, please ignore this email.</p>
+            <hr />
+            <p style="font-size: 0.85em; color: #666;">© ${new Date().getFullYear()} CTU. All rights reserved.</p>
+          </div>
+        `,
+      });
+    } catch (emailErr) {
+      console.error("Failed to send 2FA email:", emailErr);
+      // Optionally, continue login flow even if email fails:
+      return res.status(500).json({ error: "Failed to send 2FA email. Check email configuration." });
+    }
 
     res.json({
       require2FA: true,
@@ -113,6 +128,7 @@ exports.verify2FA = async (req, res) => {
     res.status(500).json({ error: "Failed to verify 2FA" });
   }
 };
+
 
 /* -------------------------------------------------------------------------- */
 /*                             🎓 STUDENT HANDLERS                            */
