@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -21,19 +21,24 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user, role: userRole, logout, loading: authLoading } = useAuth();
 
-  const [settings, setSettings] = useState({ current_academic_year: "", current_semester: "" });
-  const [programs, setPrograms] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [faculty, setFaculty] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterProgram, setProgramFilter] = useState("");
-  const [filterYear, setYearFilter] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Group state for simplicity
+  const [state, setState] = useState({
+    settings: { current_academic_year: "", current_semester: "" },
+    programs: [],
+    students: [],
+    subjects: [],
+    faculty: [],
+    departments: [],
+    activeTab: "dashboard",
+    searchQuery: "",
+    filterProgram: "",
+    filterYear: "",
+    selectedStudent: null,
+    isSidebarOpen: false,
+    loading: true
+  });
+
+  const updateState = useCallback((updates) => setState(prev => ({ ...prev, ...updates })), []);
 
   // Redirect unauthorized users
   useEffect(() => {
@@ -46,61 +51,61 @@ export default function AdminDashboard() {
   const fetchSettings = useCallback(async () => {
     try {
       const res = await API.get("settings/");
-      setSettings(res.data);
+      updateState({ settings: res.data });
     } catch {
       addToast("Failed to fetch settings ❌", "error");
     }
-  }, [addToast]);
+  }, [addToast, updateState]);
 
   const fetchPrograms = useCallback(async () => {
     try {
       const res = await API.get("programs/");
-      setPrograms(res.data);
+      updateState({ programs: res.data });
     } catch {
       addToast("Failed to fetch programs ❌", "error");
     }
-  }, [addToast]);
+  }, [addToast, updateState]);
 
   const fetchDepartments = useCallback(async () => {
     try {
       const res = await API.get("programs/departments/");
-      setDepartments(res.data);
+      updateState({ departments: res.data });
     } catch {
       addToast("Failed to fetch departments ❌", "error");
     }
-  }, [addToast]);
+  }, [addToast, updateState]);
 
   const fetchSubjects = useCallback(async () => {
     try {
       const res = await API.get("subjects/");
-      setSubjects(res.data);
+      updateState({ subjects: res.data });
     } catch {
       addToast("Failed to fetch subjects ❌", "error");
     }
-  }, [addToast]);
+  }, [addToast, updateState]);
 
   const fetchStudents = useCallback(async () => {
     try {
       const res = await API.get("admin/students", {
-          params: {
-            academic_year: settings.current_academic_year,
-            semester: settings.current_semester,
-          },
-        });
-      setStudents(res.data);
+        params: {
+          academic_year: state.settings.current_academic_year,
+          semester: state.settings.current_semester,
+        },
+      });
+      updateState({ students: res.data });
     } catch {
       addToast("Failed to fetch students ❌", "error");
     }
-  }, [addToast, settings.current_academic_year, settings.current_semester]);
+  }, [addToast, state.settings.current_academic_year, state.settings.current_semester, updateState]);
 
   const fetchFaculty = useCallback(async () => {
     try {
       const res = await API.get("faculty/");
-      setFaculty(res.data);
+      updateState({ faculty: res.data });
     } catch {
       addToast("Failed to fetch faculty ❌", "error");
     }
-  }, [addToast]);
+  }, [addToast, updateState]);
 
   // Fetch all initial data
   useEffect(() => {
@@ -108,62 +113,57 @@ export default function AdminDashboard() {
 
     const fetchAllData = async () => {
       try {
-        setLoading(true);
+        updateState({ loading: true });
         await fetchSettings();
-        
         await Promise.all([
           fetchPrograms(),
           fetchDepartments(),
           fetchSubjects(),
           fetchStudents(),
-          fetchFaculty(),
+          fetchFaculty()
         ]);
       } catch {
         addToast("Failed to fetch initial data ❌", "error");
       } finally {
-        setLoading(false);
+        updateState({ loading: false });
       }
     };
 
     fetchAllData();
-  }, [user, fetchSettings, fetchPrograms, fetchDepartments, fetchSubjects, fetchStudents, fetchFaculty, addToast]);
+  }, [user, fetchSettings, fetchPrograms, fetchDepartments, fetchSubjects, fetchStudents, fetchFaculty, addToast, updateState]);
 
-
-  const handleSelectStudentFromDashboard = async (student) => {
-    setSearchQuery(student.full_name || "");
-    setSelectedStudent(student);
+  const handleSelectStudentFromDashboard = useCallback(async (student) => {
+    updateState({ searchQuery: student.full_name || "", selectedStudent: student, activeTab: "records" });
     try {
       const res = await API.get(`grades/student/${student.student_id}`);
-      setSubjects(res.data.records);
-    } catch (err) {
+      updateState({ subjects: res.data.records });
+    } catch {
       addToast("Error fetching student records ❌", "error");
     }
-    setActiveTab("records");
-  };
+  }, [addToast, updateState]);
 
-  const getSafeFullName = (s) =>
-    `${s.first_name || ""} ${s.middle_name || ""} ${s.last_name || ""}`.trim();
+  // Derived memoized filtered students
+  const filteredStudents = useMemo(() => {
+    return state.students.filter((student) => {
+      const matchesProgram = !state.filterProgram || student.program_id === parseInt(state.filterProgram);
+      const matchesYear = !state.filterYear || student.year_level === parseInt(state.filterYear);
+      const fullName = `${student.first_name || ""} ${student.middle_name || ""} ${student.last_name || ""}`.trim().toLowerCase();
+      const search = state.searchQuery.toLowerCase();
+      return (student.student_id?.toString().includes(search) || fullName.includes(search)) &&
+             matchesProgram &&
+             matchesYear;
+    });
+  }, [state.students, state.filterProgram, state.filterYear, state.searchQuery]);
 
-  const filteredStudents = students.filter((student) => {
-    const matchesProgram = !filterProgram || student.program_id === parseInt(filterProgram);
-    const matchesYear = !filterYear || student.year_level === parseInt(filterYear);
-    const fullName = getSafeFullName(student).toLowerCase();
-    const search = searchQuery.toLowerCase();
-    const matchesSearch =
-      (student.student_id?.toString().toLowerCase() || "").includes(search) ||
-      fullName.includes(search);
-    return matchesProgram && matchesYear && matchesSearch;
-  });
-
-  if (authLoading || loading || !user) return <div>Loading...</div>;
+  if (authLoading || state.loading || !user) return <div>Loading...</div>;
 
   return (
     <div className="admin-dashboard">
-      <div className={`admin-sidebar ${isSidebarOpen ? "show" : ""}`}>
+      <div className={`admin-sidebar ${state.isSidebarOpen ? "show" : ""}`}>
         <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          setSelectedStudent={setSelectedStudent}
+          activeTab={state.activeTab}
+          setActiveTab={(tab) => updateState({ activeTab: tab })}
+          setSelectedStudent={(s) => updateState({ selectedStudent: s })}
           logout={logout}
           navigate={navigate}
           currentUser={user}
@@ -171,96 +171,96 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-        {isSidebarOpen ? "✖" : "☰"}
+      <button className="sidebar-toggle" onClick={() => updateState({ isSidebarOpen: !state.isSidebarOpen })}>
+        {state.isSidebarOpen ? "✖" : "☰"}
       </button>
 
       <div className="middle-panel">
-        {activeTab === "dashboard" && (
+        {state.activeTab === "dashboard" && (
           <DashboardTab
-            students={students}
-            settings={settings}
-            setStudents={setStudents}
-            setActiveTab={setActiveTab}
+            students={state.students}
+            settings={state.settings}
+            setStudents={(s) => updateState({ students: s })}
+            setActiveTab={(t) => updateState({ activeTab: t })}
             onViewDetails={handleSelectStudentFromDashboard}
           />
         )}
 
-        {activeTab === "records" && userRole !== "student" && (
+        {state.activeTab === "records" && userRole !== "student" && (
           <RecordsTab
-            students={students}
-            programs={programs}
-            settings={settings}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            selectedStudent={selectedStudent}
-            setSelectedStudent={setSelectedStudent}
-            programFilter={filterProgram}
-            setProgramFilter={setProgramFilter}
+            students={state.students}
+            programs={state.programs}
+            settings={state.settings}
+            searchQuery={state.searchQuery}
+            setSearchQuery={(q) => updateState({ searchQuery: q })}
+            selectedStudent={state.selectedStudent}
+            setSelectedStudent={(s) => updateState({ selectedStudent: s })}
+            programFilter={state.filterProgram}
+            setProgramFilter={(p) => updateState({ filterProgram: p })}
             filteredStudents={filteredStudents}
             userRole={userRole}
           />
         )}
 
-        {activeTab === "enrollment" && userRole === "admin" && (
+        {state.activeTab === "enrollment" && userRole === "admin" && (
           <EnrollmentTab
-            students={students}
-            settings={settings}
-            filterYear={filterYear}
-            setYearFilter={setYearFilter}
-            programs={programs}
+            students={state.students}
+            settings={state.settings}
+            filterYear={state.filterYear}
+            setYearFilter={(y) => updateState({ filterYear: y })}
+            programs={state.programs}
           />
         )}
 
-        {activeTab === "subjects" && (
+        {state.activeTab === "subjects" && (
           <SubjectsTab
-            settings={settings}
-            filterYear={filterYear}
-            programs={programs}
-            programFilter={filterProgram}
-            subjects={subjects}
-            setSubjects={setSubjects}
+            settings={state.settings}
+            filterYear={state.filterYear}
+            programs={state.programs}
+            programFilter={state.filterProgram}
+            subjects={state.subjects}
+            setSubjects={(s) => updateState({ subjects: s })}
             fetchSubjects={fetchSubjects}
             fetchPrograms={fetchPrograms}
-            setPrograms={setPrograms}
-            setYearFilter={setYearFilter}
-            loading={loading}
+            setPrograms={(p) => updateState({ programs: p })}
+            setYearFilter={(y) => updateState({ filterYear: y })}
+            loading={state.loading}
             userRole={userRole}
           />
         )}
 
-        {activeTab === "faculty" && userRole === "admin" && (
+        {state.activeTab === "faculty" && userRole === "admin" && (
           <FacultyTab
-            settings={settings}
-            faculty={faculty}
-            setFaculty={setFaculty}
+            settings={state.settings}
+            faculty={state.faculty}
+            setFaculty={(f) => updateState({ faculty: f })}
             fetchFaculty={fetchFaculty}
-            departments={departments}
-            loading={loading}
-            setLoading={setLoading}
+            departments={state.departments}
+            loading={state.loading}
+            setLoading={(l) => updateState({ loading: l })}
           />
         )}
 
-        {activeTab === "students" && userRole === "admin" && (
+        {state.activeTab === "students" && userRole === "admin" && (
           <StudentsTab
-            settings={settings}
-            students={students}
-            setStudents={setStudents}
+            settings={state.settings}
+            students={state.students}
+            setStudents={(s) => updateState({ students: s })}
             fetchStudents={fetchStudents}
-            programs={programs}
-            programFilter={filterProgram}
-            setProgramFilter={setProgramFilter}
+            programs={state.programs}
+            programFilter={state.filterProgram}
+            setProgramFilter={(p) => updateState({ filterProgram: p })}
             fetchPrograms={fetchPrograms}
           />
         )}
 
-        {activeTab === "settings" && userRole === "admin" && (
+        {state.activeTab === "settings" && userRole === "admin" && (
           <SettingsTab
-            settings={settings}
-            setSettings={setSettings}
+            settings={state.settings}
+            setSettings={(s) => updateState({ settings: s })}
             fetchSettings={fetchSettings}
-            loading={loading}
-            setLoading={setLoading}
+            loading={state.loading}
+            setLoading={(l) => updateState({ loading: l })}
           />
         )}
       </div>

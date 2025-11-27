@@ -4,127 +4,148 @@ const db = require("../db");
 // Get Notifications (latest first)
 // ======================
 exports.getNotifications = async (req, res) => {
-	const { user_type, user_id } = req.params;
+  const { user_type, user_id } = req.params;
 
-	try {
-		const [rows] = await db.execute(
-			`SELECT * FROM notifications
+  try {
+    const [rows] = await db.execute(
+      `SELECT * FROM notifications
        WHERE user_type = ? AND user_id = ? AND is_deleted = 0
        ORDER BY created_at DESC
        LIMIT 50`,
-			[user_type, user_id]
-		);
+      [user_type, user_id]
+    );
 
-		res.json(rows);
-	} catch (err) {
-		console.error("Get notifications error:", err);
-		res.status(500).json({ error: "Failed to fetch notifications" });
-	}
+    res.json(rows);
+  } catch (err) {
+    console.error("Get notifications error:", err);
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
 };
 
 // ======================
 // Create Notification + Emit via Socket.IO
 // ======================
 exports.createNotification = async (req, res) => {
-	const { user_type, user_id, title, message, type, link, sender_id, sender_type } = req.body;
+  const { user_type, user_id, title, message, type, link, sender_id, sender_type } = req.body;
 
-	if (!user_type || !user_id || !message) {
-		return res
-			.status(400)
-			.json({ error: "user_type, user_id, and message are required" });
-	}
+  if (!user_type || !user_id || !message) {
+    return res
+      .status(400)
+      .json({ error: "user_type, user_id, and message are required" });
+  }
 
-	try {
-		const [result] = await db.execute(
-			`INSERT INTO notifications
+  try {
+    const [result] = await db.execute(
+      `INSERT INTO notifications
        (user_type, user_id, title, message, type, link, sender_id, sender_type, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-			[
-				user_type,
-				user_id,
-				title,
-				message,
-				type || "general",
-				link,
-				sender_id,
-				sender_type,
-			]
-		);
+      [
+        user_type,
+        user_id,
+        title,
+        message,
+        type || "general",
+        link,
+        sender_id,
+        sender_type,
+      ]
+    );
 
-		const notification = {
-			notification_id: result.insertId,
-			user_type,
-			user_id,
-			title,
-			message,
-			type: type || "general",
-			link,
-			sender_id,
-			sender_type,
-			created_at: new Date(),
-		};
+    const notification = {
+      notification_id: result.insertId,
+      user_type,
+      user_id,
+      title,
+      message,
+      type: type || "general",
+      link,
+      sender_id,
+      sender_type,
+      created_at: new Date(),
+    };
 
-		// ✅ Emit notification via socket
-		const io = req.app.get("io");
-		io.emit("new-notification", notification);
+    // Emit notification via socket
+    const io = req.app.get("io");
+    io.emit("new-notification", notification);
 
-		res.json({ success: true, notification });
-	} catch (err) {
-		console.error("Create notification error:", err);
-		res.status(500).json({ error: "Failed to create notification" });
-	}
+    res.json({ success: true, notification });
+  } catch (err) {
+    console.error("Create notification error:", err);
+    res.status(500).json({ error: "Failed to create notification" });
+  }
 };
 
 // ======================
 // Mark as Seen
 // ======================
 exports.markAsSeen = async (req, res) => {
-	const { notification_id } = req.params;
+  const { notification_id } = req.params;
 
-	try {
-		await db.execute(
-			"UPDATE notifications SET is_seen = 1 WHERE notification_id = ?",
-			[notification_id]
-		);
-		res.json({ success: true });
-	} catch (err) {
-		console.error("Mark as seen error:", err);
-		res.status(500).json({ error: "Failed to update notification" });
-	}
+  try {
+    await db.execute(
+      "UPDATE notifications SET is_seen = 1 WHERE notification_id = ?",
+      [notification_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Mark as seen error:", err);
+    res.status(500).json({ error: "Failed to update notification" });
+  }
 };
 
 // ======================
 // Mark as Read
 // ======================
 exports.markAsRead = async (req, res) => {
-	const { notification_id } = req.params;
+  const { notification_id } = req.params;
 
-	try {
-		await db.execute(
-			"UPDATE notifications SET is_read = 1 WHERE notification_id = ?",
-			[notification_id]
-		);
-		res.json({ success: true });
-	} catch (err) {
-		console.error("Mark as read error:", err);
-		res.status(500).json({ error: "Failed to update notification" });
-	}
+  try {
+    await db.execute(
+      "UPDATE notifications SET is_read = 1 WHERE notification_id = ?",
+      [notification_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Mark as read error:", err);
+    res.status(500).json({ error: "Failed to update notification" });
+  }
 };
 
 // ======================
 // Soft Delete Notification
 // ======================
 exports.deleteNotification = async (req, res) => {
-	const { notification_id } = req.params;
+  const { notification_id } = req.params;
 
-	try {
-		await db.execute(
-			"UPDATE notifications SET is_deleted = 1 WHERE notification_id = ?",
-			[notification_id]
-		);
-		res.json({ success: true });
-	} catch (err) {
-		console.error("Delete notification error:", err);
-		res.status(500).json({ error: "Failed to delete notification" });
-	}
+  try {
+    await db.execute(
+      "UPDATE notifications SET is_deleted = 1 WHERE notification_id = ?",
+      [notification_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete notification error:", err);
+    res.status(500).json({ error: "Failed to delete notification" });
+  }
+};
+
+// ======================
+// Batch Mark as Seen (Optional internal use for frontend optimization)
+// ======================
+exports.markMultipleAsSeen = async (req, res) => {
+  const { notificationIds } = req.body;
+
+  if (!notificationIds || !notificationIds.length) {
+    return res.status(400).json({ error: "No notifications provided" });
+  }
+
+  try {
+    const placeholders = notificationIds.map(() => "?").join(",");
+    const query = `UPDATE notifications SET is_seen = 1 WHERE notification_id IN (${placeholders})`;
+    await db.execute(query, notificationIds);
+    res.json({ success: true, updated: notificationIds.length });
+  } catch (err) {
+    console.error("Mark multiple notifications as seen error:", err);
+    res.status(500).json({ error: "Failed to update notifications" });
+  }
 };

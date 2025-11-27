@@ -2,6 +2,7 @@
     import API from '../api/api';
     import ctuLogo from '../img/ctu_logo.png';
     import { useNavigate } from 'react-router-dom';
+    import "../css/LoginPage.css";
 
     const SignupPage = () => {
     const [step, setStep] = useState(1); // 1=ID, 2=Code, 3=Password

@@ -1,48 +1,49 @@
-import { useEffect, useState } from "react";
+import React, { lazy, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import Header from "./Header";
-import API from "../api/api";
+import { useSettings } from "../context/SettingsContext";
 
-const Layout = ({ children }) => {
+// Lazy load Header to reduce initial bundle
+const Header = lazy(() => import("./Header"));
+
+const Layout = React.memo(({ children }) => {
   const { logout } = useAuth();
+  const settings = useSettings();
   const navigate = useNavigate();
-  const [settings, setSettings] = useState(null);
 
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const res = await API.get("/settings");
-        setSettings(res.data);
-      } catch (err) {
-        console.error("Failed to fetch settings:", err);
-      }
-    };
-    fetchSettings();
-  }, []);
-
-  const handleLogout = () => {
+  // Logout handler
+  const handleLogout = useCallback(() => {
     logout();
     navigate("/");
+  }, [logout, navigate]);
+
+  // Generic navigation handler generator
+  const handleNavigate = useCallback(
+    (path) => () => navigate(path),
+    [navigate]
+  );
+
+  // Define all Header navigation props dynamically
+  const navProps = {
+    onLogout: handleLogout,
+    onEnroll: handleNavigate("/enroll"),
+    onHome: handleNavigate("/home"),
+    onGrades: handleNavigate("/grades"),
+    onSchedule: handleNavigate("/schedule"),
+    onNotifications: handleNavigate("/notifications"),
+    onProfile: handleNavigate("/profile"),
   };
 
   return (
     <div className="layout-container">
       <div className="layout-right">
-        <Header
-          settings={settings} // ✅ Pass settings here
-          onLogout={handleLogout}
-          onEnroll={() => navigate("/enroll")}
-          onHome={() => navigate("/home")}
-          onGrades={() => navigate("/grades")}
-          onSchedule={() => navigate("/schedule")}
-          onNotifications={() => navigate("/notifications")}
-          onProfile={() => navigate("/profile")}
-        />
+        <Suspense fallback={<div>Loading header...</div>}>
+          <Header {...navProps} settings={settings} />
+        </Suspense>
         <main className="main-content">{children}</main>
       </div>
     </div>
   );
-};
+});
 
 export default Layout;

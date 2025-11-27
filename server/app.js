@@ -3,13 +3,14 @@ const cors = require('cors');
 const http = require('http');          // needed for socket.io
 const { Server } = require('socket.io');
 const path = require('path');          // ✅ <— missing import
+require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app); // wrap express with http server
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
   },
 });
@@ -37,6 +38,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const gradesRoutes = require('./routes/gradesRoutes');
 const clearanceRoutes = require('./routes/clearanceRoutes');
 const programsRoutes = require('./routes/programsRoutes');
+const { env } = require('process');
 
 app.use('/api/programs', programsRoutes);
 app.use('/api/clearance', clearanceRoutes);

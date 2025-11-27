@@ -1,42 +1,53 @@
-import { useEffect } from 'react';
-import socket from '../socket';
-import { useToast } from '../context/ToastContext';
+import { useEffect } from "react";
+import { getSocket } from "../socket";
+import { useToast } from "../context/ToastContext";
 
 export default function SocketListener() {
-	const { addToast } = useToast();
+  const { addToast } = useToast();
 
-	useEffect(() => {
-		socket.on("connect", () => {
-			console.log("✅ Connected to WebSocket server:", socket.id);
-		});
+  useEffect(() => {
+    const socket = getSocket();
 
-		socket.on("disconnect", () => {
-			console.log("❌ Disconnected from WebSocket server");
-		});
+    // No socket yet (user not logged in)
+    if (!socket) return;
 
-		socket.on("newEnrollment", (data) => {
-			console.log("📢 New enrollment:", data);
-			addToast(`📚 ${data.message}`);
-		});
+    const handleConnect = () => {
+      console.log("✅ Connected to WebSocket server:", socket.id);
+    };
 
-		socket.on("enrollmentStatusUpdate", (data) => {
-			console.log("📢 Enrollment status updated:", data);
-			addToast(`🔄 Status updated for student ${data.student_id}`);
-		});
+    const handleDisconnect = () => {
+      console.log("❌ Disconnected from WebSocket server");
+    };
 
-		socket.on("notification", (data) => {
-			console.log("🔔 Notification received:", data);
-			addToast(`🔔 ${data.title}: ${data.message}`);
-		});
+    const handleNewEnrollment = (data) => {
+      console.log("📢 New enrollment:", data);
+      addToast(`📚 ${data.message}`);
+    };
 
-		return () => {
-			socket.off("connect");
-			socket.off("disconnect");
-			socket.off("newEnrollment");
-			socket.off("enrollmentStatusUpdate");
-			socket.off("notification");
-		};
-	}, [addToast]);
+    const handleStatusUpdate = (data) => {
+      console.log("📢 Enrollment status updated:", data);
+      addToast(`🔄 Status updated for student ${data.student_id}`);
+    };
 
-	return null; // ✅ doesn't render anything, just listens
+    const handleNotification = (data) => {
+      console.log("🔔 Notification received:", data);
+      addToast(`🔔 ${data.title}: ${data.message}`);
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("newEnrollment", handleNewEnrollment);
+    socket.on("enrollmentStatusUpdate", handleStatusUpdate);
+    socket.on("notification", handleNotification);
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("newEnrollment", handleNewEnrollment);
+      socket.off("enrollmentStatusUpdate", handleStatusUpdate);
+      socket.off("notification", handleNotification);
+    };
+  }, [addToast]);
+
+  return null;
 }
