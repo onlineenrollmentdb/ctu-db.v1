@@ -153,7 +153,7 @@ const ProfilePage = () => {
     }
   };
 
-  const serverURL = process.env.REACT_APP_API.replace("/api", "");
+  const serverURL = process.env.REACT_APP_SOCKET;
   const profilePicture = data.profile_picture
     ? `${serverURL}${data.profile_picture}`
     : defaultUser;
