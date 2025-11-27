@@ -27,86 +27,91 @@ const transporter = nodemailer.createTransport({
 /*                             🧠 AUTHENTICATION + 2FA                         */
 /* -------------------------------------------------------------------------- */
 
+
 // ✅ Step 1: Login → send 2FA code
 exports.login = async (req, res) => {
-	try {
-		const { username, password } = req.body;
-		const [rows] = await db.execute("SELECT * FROM admin WHERE admin_user = ?", [username]);
+  try {
+    const { username, password } = req.body;
 
-		if (!rows.length) return res.status(401).json({ error: "Invalid credentials" });
+    const [rows] = await db.execute(
+      "SELECT * FROM admin WHERE admin_user = ?",
+      [username]
+    );
 
-		const admin = rows[0];
-		const isMatch = await bcrypt.compare(password, admin.admin_pass);
-		if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
+    if (!rows.length) return res.status(401).json({ error: "Invalid credentials" });
 
-		// Generate 2FA code
-		const code = crypto.randomInt(100000, 999999).toString();
+    const admin = rows[0];
+    const isMatch = await bcrypt.compare(password, admin.admin_pass);
+    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
-		// Save code & expiry (5 minutes)
-		await db.execute(
-			"UPDATE admin SET two_fa_code = ?, two_fa_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE admin_id = ?",
-			[code, admin.admin_id]
-		);
+    // Generate 2FA code
+    const code = crypto.randomInt(100000, 999999).toString();
 
-		// Send via email
-		await transporter.sendMail({
-			from: process.env.EMAIL_USER,
-			to: admin.email,
-			subject: "Your 2FA Verification Code",
-			text: `Your 2FA code is: ${code}. It will expire in 5 minutes.`,
-		});
+    // Save code & expiry (5 minutes)
+    await db.execute(
+      "UPDATE admin SET two_fa_code = ?, two_fa_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE admin_id = ?",
+      [code, admin.admin_id]
+    );
 
-		res.json({
-			require2FA: true,
-			message: "2FA code sent to your email.",
-			admin_id: admin.admin_id,
-		});
-	} catch (err) {
-		console.error("Admin login error:", err);
-		res.status(500).json({ error: "Failed to login" });
-	}
+    // Send 2FA code via email
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: admin.email,
+      subject: "Your 2FA Verification Code",
+      text: `Your 2FA code is: ${code}. It will expire in 5 minutes.`,
+    });
+
+    res.json({
+      require2FA: true,
+      message: "2FA code sent to your email.",
+      admin_id: admin.admin_id,
+    });
+  } catch (err) {
+    console.error("Admin login error:", err);
+    res.status(500).json({ error: "Failed to login" });
+  }
 };
 
 // ✅ Step 2: Verify 2FA code → return JWT
 exports.verify2FA = async (req, res) => {
-	try {
-		const { admin_id, code } = req.body;
+  try {
+    const { admin_id, code } = req.body;
 
-		if (!admin_id || !code)
-			return res.status(400).json({ error: "Admin ID and code are required" });
+    if (!admin_id || !code)
+      return res.status(400).json({ error: "Admin ID and code are required" });
 
-		const [rows] = await db.execute(
-			"SELECT * FROM admin WHERE admin_id = ? AND two_fa_code = ? AND two_fa_expires > NOW()",
-			[admin_id, code]
-		);
+    const [rows] = await db.execute(
+      "SELECT * FROM admin WHERE admin_id = ? AND two_fa_code = ? AND two_fa_expires > NOW()",
+      [admin_id, code]
+    );
 
-		if (!rows.length)
-			return res.status(401).json({ error: "Invalid or expired 2FA code" });
+    if (!rows.length)
+      return res.status(401).json({ error: "Invalid or expired 2FA code" });
 
-		const admin = rows[0];
+    const admin = rows[0];
 
-		// Clear used 2FA
-		await db.execute(
-			"UPDATE admin SET two_fa_code = NULL, two_fa_expires = NULL WHERE admin_id = ?",
-			[admin_id]
-		);
+    // Clear used 2FA
+    await db.execute(
+      "UPDATE admin SET two_fa_code = NULL, two_fa_expires = NULL WHERE admin_id = ?",
+      [admin_id]
+    );
 
-		// Issue JWT
-		const token = jwt.sign(
-			{ admin_id: admin.admin_id, username: admin.username },
-			process.env.JWT_SECRET,
-			{ expiresIn: "12h" }
-		);
+    // Issue JWT
+    const token = jwt.sign(
+      { admin_id: admin.admin_id, admin_user: admin.admin_user },
+      process.env.JWT_SECRET,
+      { expiresIn: "12h" }
+    );
 
-		res.json({
-			message: "2FA verified successfully",
-			token,
-			admin: { id: admin.admin_id, username: admin.username },
-		});
-	} catch (err) {
-		console.error("verify2FA error:", err);
-		res.status(500).json({ error: "Failed to verify 2FA" });
-	}
+    res.json({
+      message: "2FA verified successfully",
+      token,
+      admin: { id: admin.admin_id, username: admin.admin_user },
+    });
+  } catch (err) {
+    console.error("verify2FA error:", err);
+    res.status(500).json({ error: "Failed to verify 2FA" });
+  }
 };
 
 /* -------------------------------------------------------------------------- */
