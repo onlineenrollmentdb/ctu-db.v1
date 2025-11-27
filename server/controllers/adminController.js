@@ -439,8 +439,8 @@ exports.addStudent = async (req, res) => {
 
     const [result] = await db.execute(
       `INSERT INTO students
-       (student_id, first_name, middle_name, last_name, email, year_level, student_status, program_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (student_id, first_name, middle_name, last_name, email, year_level, student_status, program_id, password)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         studentIdNum,
         first_name,
@@ -450,6 +450,7 @@ exports.addStudent = async (req, res) => {
         year_level,
         student_status,
         programIdNum,
+        password = "$2b$10$x279Jjm2PXHksVoNCsXkuugo8FNtvLaFXz9unnkb8XCkFcOMbjBle",
       ]
     );
 
