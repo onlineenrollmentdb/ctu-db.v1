@@ -214,7 +214,7 @@ export default function RecordsTab({
     setStudentForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const serverURL = process.env.REACT_APP_API.replace("/api", "");
+  const serverURL = process.env.REACT_APP_SOCKET;
   const profilePicture = studentForm.profile_picture
       ? `${serverURL}${studentForm.profile_picture}`
       : defaultUser;
