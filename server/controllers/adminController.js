@@ -26,6 +26,7 @@ const transporter = nodemailer.createTransport({
 /*                             🧠 AUTHENTICATION + 2FA                         */
 /* -------------------------------------------------------------------------- */
 
+
 // ✅ Step 1: Login → send 2FA code
 exports.login = async (req, res) => {
   try {
@@ -50,7 +51,6 @@ exports.login = async (req, res) => {
       "UPDATE admin SET two_fa_code = ?, two_fa_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE admin_id = ?",
       [code, admin.admin_id]
     );
-
     // Send 2FA code via professional-looking email
     try {
       await transporter.sendMail({
@@ -75,7 +75,6 @@ exports.login = async (req, res) => {
       // Optionally, continue login flow even if email fails:
       return res.status(500).json({ error: "Failed to send 2FA email. Check email configuration." });
     }
-
     res.json({
       require2FA: true,
       message: "2FA code sent to your email.",
