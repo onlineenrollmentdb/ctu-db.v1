@@ -107,7 +107,7 @@ const EnrollmentTracker = ({
               style={{ cursor: "pointer" }}
             >
               <img
-                src={require(`../img/icons/${i + 1}.png`)}
+                src={require(`../img/icons/${i + 1}.webp`)}
                 alt={`Step ${i + 1}`}
               />
             </div>

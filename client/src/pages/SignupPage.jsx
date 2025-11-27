@@ -1,6 +1,6 @@
     import React, { useState } from 'react';
     import API from '../api/api';
-    import ctuLogo from '../img/ctu_logo.png';
+    import ctuLogo from '../img/ctu_logo.webp';
     import { useNavigate } from 'react-router-dom';
     import "../css/LoginPage.css";
 

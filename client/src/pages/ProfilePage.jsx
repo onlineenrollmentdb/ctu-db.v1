@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import API from "../api/api";
 import "../css/ProfilePage.css";
-import defaultUser from "../img/default-user.png";
+import defaultUser from "../img/default_user.webp";
 import { useToast } from "../context/ToastContext";
 
 const fieldLabels = {

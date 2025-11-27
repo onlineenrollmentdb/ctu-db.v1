@@ -1,7 +1,7 @@
 import React, { useState} from 'react';
 import '../css/Sidebar.css';
 import { useAuth } from '../context/AuthContext';
-import defaultUserImg from "../img/default_user-no-bg.png";
+import defaultUserImg from "../img/default_user.webp";
 
 const Sidebar = ({
     onHome,

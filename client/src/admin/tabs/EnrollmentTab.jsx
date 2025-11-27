@@ -3,7 +3,7 @@ import AdminHeaderControls from "../components/AdminHeaderControls";
 import API from "../../api/api";
 import { useToast } from "../../context/ToastContext";
 import { X } from "lucide-react";
-import defaultUser from "../../img/default-user.png";
+import defaultUser from "../../img/default_user.webp";
 import "../css/enrollment.css";
 
 export default function EnrollmentTab({ settings, filterYear, setYearFilter, programs }) {

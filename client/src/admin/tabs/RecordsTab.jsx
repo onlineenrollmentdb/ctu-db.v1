@@ -3,7 +3,7 @@ import API from "../../api/api";
 import AdminHeaderControls from "../components/AdminHeaderControls";
 import { useToast } from "../../context/ToastContext";
 import socket from "../../socket";
-import defaultUser from "../../img/default-user.png";
+import defaultUser from "../../img/default_user.webp";
 
 export default function RecordsTab({
   students,

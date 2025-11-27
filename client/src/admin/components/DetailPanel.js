@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api/api";
-import defaultUserImg from "../../img/default_user-no-bg.png";
+import defaultUserImg from "../../img/default_user.webp";
 
 export default function DetailPanel({ activeTab, record, setShowDetailsModal, showDetailsModal }) {
     const [expanded, setExpanded] = useState(false);

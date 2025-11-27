@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../api/api";
 import { useAuth } from "../context/AuthContext";
-import ctuLogo from "../img/ctu_logo.png";
-import userIcon from "../img/user.png";
 import { useToast } from "../context/ToastContext";
-import keyIcon from "../img/key.png";
+
+
+import API from "../api/api";
+import ctuLogo from "../img/ctu_logo.webp";
+import userIcon from "../img/user.webp";
+import keyIcon from "../img/key.webp";
 import "../css/LoginPage.css";
 
 const LoginPage = () => {

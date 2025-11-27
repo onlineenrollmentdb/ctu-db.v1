@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../api/api";
-import ctuLogo from "../img/ctu_logo.png";
-import keyIcon from "../img/key.png";
+import ctuLogo from "../img/ctu_logo.webp";
+import keyIcon from "../img/key.webp";
 import "../css/LoginPage.css"; // use the same CSS as login page
 
 const ResetPasswordPage = () => {

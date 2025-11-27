@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense, laz
 import { useAuth } from "../context/AuthContext";
 import { useLocation } from "react-router-dom";
 import API from "../api/api";
-import logo from "../img/ctu_logo.png";
-import defaultUser from "../img/default-user.png";
+import logo from "../img/ctu_logo.webp";
+import defaultUser from "../img/default_user.webp";
 import "../css/Header.css";
 
 // Lazy-load icons
