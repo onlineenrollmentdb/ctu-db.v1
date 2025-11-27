@@ -1,38 +1,23 @@
 // server/db.js
-import mysql from "mysql2/promise";
-import dotenv from "dotenv";
-dotenv.config();
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-// Prepare SSL for Aiven / Render
-const sslOptions = process.env.DB_CA_CERT
-  ? { ca: process.env.DB_CA_CERT.replace(/\\n/g, "\n"), rejectUnauthorized: true }
-  : { rejectUnauthorized: false };
-
-// Create the pool
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: process.env.DB_PORT || 3306, // default MySQL port
+  port: process.env.DB_PORT || 3306, // 5000 is wrong for MySQL, use default 3306
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
-  ssl: sslOptions,
+  ssl: process.env.DB_CA_CERT
+    ? { ca: process.env.DB_CA_CERT, rejectUnauthorized: true }
+    : { rejectUnauthorized: false }
 });
 
-// Helper to mimic db.execute() like before
 const db = {
-  execute: async (sql, params) => {
-    const connection = await pool.getConnection();
-    try {
-      const [rows] = await connection.execute(sql, params);
-      return [rows];
-    } finally {
-      connection.release();
-    }
-  },
-  pool, // in case you need direct access to pool
+  execute: (sql, params) => pool.execute(sql, params),
+  pool // optional, in case you need raw pool access
 };
 
-export default db;
+module.exports = db;
