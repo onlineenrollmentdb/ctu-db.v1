@@ -1,0 +1,483 @@
+/* =========================
+   Header Layout
+========================= */
+.header-grid {
+  display: grid;
+  grid-template-columns: auto 1fr; /* 2 columns: logo + nav/profile*/
+  grid-template-rows: auto auto auto;   /* 3 rows: top + announcement */
+  align-items: center;
+  background: var(--white);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-logo {
+  width: 60px;
+  height: 60px;
+}
+.logo {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+  display: flex;
+  padding: 0.5rem;
+  align-items: center;
+  margin-left: 1.5rem;
+  margin-top: .5rem;
+}
+
+.announcement {
+  grid-column: 1 / -1;
+  grid-row: 3 / 4;
+  display: flex;
+  align-items: center;
+  padding-left: 1.5rem;
+  gap: 0.4rem;
+  font-weight: 500;
+  background-color: #96a9ff77;
+}
+
+.academic-info{
+  grid-column: 1 / 3;
+  grid-row: 1 / 2;
+  display: flex;
+  text-align: right;
+  flex-direction: column;
+  margin-right: 1.5rem;
+  font-size: 0.7rem;
+  color: var(--medium-gray);
+}
+
+.ann-icon {
+  font-size: 1.2rem;
+  color: var(--primary-color);
+}
+.view-date-btn {
+  background: transparent;
+  border: none;
+  color: var(--primary-color);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+/* =========================
+   Nav Buttons
+========================= */
+.nav-profile {
+  grid-column: 2 / 3;
+  grid-row: 2 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.2rem;
+  margin-right: 1.5rem;
+  margin-top: .5rem;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: none;
+  border: none;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--black);
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-btn i {
+  font-size: 1.1rem;
+}
+
+.nav-btn:hover {
+  background: #d6eaff;
+  color: #2563eb;
+}
+
+.nav-btn.active {
+  background: #e8f3ff;
+  color: #2563eb;
+}
+
+/* =========================
+   Announcement Modal
+========================= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 400px;
+  width: 80% !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.modal-content h5 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: var(--primary-color);
+}
+
+.modal-content p {
+  font-size: 1rem;
+  color: #374151;
+}
+
+
+/* =========================
+   Notification Bell
+========================= */
+.notification-bell {
+  position: relative;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.notification-bell:hover i {
+  animation: bell-shake 0.6s ease-in-out;
+}
+
+.notification-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--error-red);
+  border: 2px solid var(--white);
+}
+
+@keyframes bell-shake {
+  0%   { transform: rotate(0); }
+  15%  { transform: rotate(15deg); }
+  30%  { transform: rotate(-10deg); }
+  45%  { transform: rotate(7deg); }
+  60%  { transform: rotate(-4deg); }
+  75%  { transform: rotate(2deg); }
+  100% { transform: rotate(0); }
+}
+/* =========================
+   Notification Dropdown
+========================= */
+.notification-dropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  width: 320px;
+  max-height: 400px;
+  background: var(--white);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  overflow-y: auto;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notif-header h6 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.notification-dropdown ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notif-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.notif-item.unread {
+  background: var(--bc);
+}
+
+.notif-item:hover {
+  background: #f0f4ff;
+}
+
+.notif-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notif-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notif-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  flex: 1;
+}
+
+.notif-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-color);
+}
+
+.notif-content small {
+  font-size: 0.7rem;
+  color: var(--medium-gray);
+}
+
+.notification-dropdown .empty {
+  padding: 20px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--medium-gray);
+}
+
+.delete-notif-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #ff0000;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+.delete-notif-btn:hover {
+  color: darkred;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================
+   Profile Section
+========================= */
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile:hover {
+  background: var(--bc);
+  transform: translateY(-1px);
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: 50px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100;
+  font-size: 0.85rem;
+  max-width: 190px;
+  text-align: left;
+}
+
+.profile-dropdown p {
+  margin: 0.3rem 0;
+  color: #374151;
+  text-align: left;
+}
+
+.status.regular {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.status.irregular {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.logout-btn, .profile-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  padding: 0.5rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.profile-btn {
+  color: #2563eb;
+}
+
+.logout-btn {
+  color: #ff0000;
+}
+
+.profile-btn:hover {
+  background: #e0eaff;
+}
+
+.logout-btn:hover {
+  background: #ffe5e5;
+}
+
+/* =========================
+   Mobile Responsiveness
+========================= */
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .nav-btn i {
+    font-size: 0.8rem;
+  }
+
+  .profile .hide-on-mobile {
+    display: none !important;
+  }
+
+  .profile-dropdown {
+    width: 40vw;
+    max-width: 300px;
+    right: 10px;
+  }
+
+  .mobile-profile-name {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .header {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0.5rem;
+    justify-items: center;
+  }
+
+  .header-left {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .header-right {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .announcement {
+    display: flex !important;
+    flex-basis: 100%;
+    justify-content: center;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    padding: 0;
+  }
+
+  .ann-icon i {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-profile-name {
+    display: none;
+  }
+}
+
+@media (max-width: 500px) {
+  .notification-dropdown {
+    width: 80vw;
+    right: -50px;
+  }
+  .academic-info{
+    font-size: 0.6rem;
+    text-align: center;
+    margin: 0;
+  }
+  .announcement {
+    font-size: 0.6rem;
+  }
+  .nav-profile{
+    gap: 0.5rem;
+  }
+  .view-date-btn {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .nav-profile{
+    gap: 0.1rem;
+    margin: 0;
+  }
+  .logo {
+    margin: 0;
+    padding:  0 0.5rem;
+  }
+  .logo img {
+    height: 50px;
+    width: 50px;
+  }
+  .announcement {
+    font-size: 0.5rem;
+  }
+  .view-date-btn {
+    font-size: 0.6rem;
+  }
+}
