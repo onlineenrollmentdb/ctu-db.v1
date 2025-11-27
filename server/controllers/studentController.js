@@ -6,6 +6,9 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
 
 // ====================================
 // 🔹 Multer configuration for uploads
@@ -162,7 +165,7 @@ exports.updateStudent = async (req, res) => {
 
 
 // ====================================
-// 🔹 Forgot Password
+// 🔹 Forgot Password (SendGrid)
 // ====================================
 exports.forgotPassword = async (req, res) => {
   const { student_id } = req.body;
@@ -175,42 +178,66 @@ exports.forgotPassword = async (req, res) => {
       "SELECT * FROM students WHERE student_id = ?",
       [student_id]
     );
+
     if (rows.length === 0)
       return res.status(404).json({ error: "Student not found" });
 
     const student = rows[0];
+
     if (!student.email)
       return res.status(400).json({ error: "No email on record" });
 
-    const resetToken = jwt.sign({ student_id: student.student_id }, JWT_SECRET, {
-      expiresIn: "15m",
-    });
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    });
+    const resetToken = jwt.sign(
+      { student_id: student.student_id },
+      JWT_SECRET,
+      { expiresIn: "15m" }
+    );
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-    await transporter.sendMail({
-      from: `"CTU Enrollment System" <${process.env.EMAIL_USER}>`,
+    // 📩 SendGrid Email
+    const message = {
       to: student.email,
-      subject: "CTU Password Reset Request",
+      from: process.env.SENDGRID_SENDER,
+      subject: "CTU Enrollment – Password Reset Request",
       html: `
-        <p>Hello ${student.first_name},</p>
-        <p>You requested to reset your password.</p>
-        <p><a href="${resetLink}" target="_blank">${resetLink}</a></p>
-        <p>This link expires in 15 minutes.</p>
+        <div style="font-family: Arial, sans-serif; padding: 15px; color: #333;">
+          <h2 style="color: #0056b3;">CTU Enrollment System</h2>
+
+          <p>Hello <strong>${student.first_name}</strong>,</p>
+
+          <p>You requested to reset your password. Please click the button below:</p>
+
+          <a href="${resetLink}"
+             style="display:inline-block; margin-top:15px; padding:10px 18px; background:#0056b3; color:white; text-decoration:none; border-radius:5px;">
+             Reset Password
+          </a>
+
+          <p style="margin-top:20px;">
+            Or copy this link:<br>
+            <a href="${resetLink}">${resetLink}</a>
+          </p>
+
+          <p>This link will expire in <strong>15 minutes</strong>.</p>
+
+          <br>
+          <p style="font-size:14px; color: #777;">
+            This is an automated email from the CTU Enrollment System.
+          </p>
+        </div>
       `,
-    });
+    };
+
+    await sgMail.send(message);
 
     res.json({ message: "Password reset email sent successfully." });
+
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({ error: "Server error sending reset link." });
   }
 };
+
 
 // ====================================
 // 🔹 Reset Password

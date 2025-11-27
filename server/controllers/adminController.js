@@ -9,25 +9,17 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { sendNotification } = require("../helpers/notificationHelper");
 const { fetchStudents, fetchEnrolledStudents } = require("../helpers/studentHelpers");
+const sgMail = require('@sendgrid/mail');
 require("dotenv").config();
 
-/* -------------------------------------------------------------------------- */
-/*                           📧 EMAIL TRANSPORTER                              */
-/* -------------------------------------------------------------------------- */
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 /* -------------------------------------------------------------------------- */
 /*                             🧠 AUTHENTICATION + 2FA                         */
 /* -------------------------------------------------------------------------- */
 
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-// ✅ Step 1: Login → send 2FA code
+// Step 1: Login → send 2FA code
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -51,30 +43,33 @@ exports.login = async (req, res) => {
       "UPDATE admin SET two_fa_code = ?, two_fa_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE admin_id = ?",
       [code, admin.admin_id]
     );
-    // Send 2FA code via professional-looking email
-    try {
-      await transporter.sendMail({
-        from: `"CTU Enrollment System" <${process.env.EMAIL_USER}>`,
-        to: admin.email,
-        subject: "🔒 Your CTU Admin 2FA Verification Code",
-        html: `
-          <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-            <h2 style="color: #0052cc;">CTU Enrollment System</h2>
-            <p>Hello <strong>${admin.admin_user}</strong>,</p>
-            <p>Your 2FA verification code is:</p>
-            <h1 style="color: #0052cc;">${code}</h1>
-            <p>This code will expire in <strong>5 minutes</strong>.</p>
-            <p>If you did not request this code, please ignore this email.</p>
-            <hr />
-            <p style="font-size: 0.85em; color: #666;">© ${new Date().getFullYear()} CTU. All rights reserved.</p>
-          </div>
-        `,
-      });
-    } catch (emailErr) {
-      console.error("Failed to send 2FA email:", emailErr);
-      // Optionally, continue login flow even if email fails:
-      return res.status(500).json({ error: "Failed to send 2FA email. Check email configuration." });
-    }
+
+    // Send 2FA code via SendGrid
+    const msg = {
+      to: admin.email,
+      from: process.env.EMAIL_FROM,
+      subject: "🔒 CTU Enrollment 2FA Verification Code",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #333;">CTU Enrollment System</h2>
+          <p>Hello <strong>${admin.admin_user}</strong>,</p>
+          <p>Your 2FA verification code is:</p>
+          <h1 style="color: #1a73e8;">${code}</h1>
+          <p>This code will expire in 5 minutes.</p>
+          <p>Do not share this code with anyone.</p>
+          <hr/>
+          <p style="font-size: 12px; color: #999;">CTU Enrollment &copy; ${new Date().getFullYear()}</p>
+        </div>
+      `
+    };
+
+    // Send email asynchronously
+    sgMail.send(msg).then(() => {
+      console.log('2FA email sent via SendGrid');
+    }).catch(err => {
+      console.error('SendGrid email error:', err);
+    });
+
     res.json({
       require2FA: true,
       message: "2FA code sent to your email.",
