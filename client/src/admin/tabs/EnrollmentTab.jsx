@@ -19,7 +19,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
   const studentsPerPage = 20;
   const { addToast } = useToast();
 
-  const serverURL = process.env.REACT_APP_API?.replace("/api", "") || "http://localhost:5000";
+  const serverURL = process.env.REACT_APP_SOCKET;
 
 
   // 🔹 EXPORT CSV based on current statusFilter
