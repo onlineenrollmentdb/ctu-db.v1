@@ -136,7 +136,7 @@ useEffect(() => {
 
   if (!student) return null;
 
-  const serverURL = process.env.REACT_APP_API.replace("/api", "");
+  const serverURL = process.env.REACT_APP_SOCKET;
   const profilePicture = student.profile_picture
     ? `${serverURL}${student.profile_picture}`
     : defaultUser;
