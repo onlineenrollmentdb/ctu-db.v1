@@ -1,7 +1,6 @@
 // src/components/EnrollmentTracker.js
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../api/api";
 import socket from "../socket"; // ✅ import socket.io client
 import "../css/EnrollmentTracker.css";
 
@@ -74,13 +73,6 @@ const EnrollmentTracker = ({
     // Step-specific actions
     if (i === 1) {
       navigate("/enroll");
-    } else if (i === 2) {
-      try {
-        await API.put(`/enrollments/status/${student.student_id}`, { status: 3 });
-        if (onStepClick) onStepClick(2);
-      } catch (err) {
-        console.error("Failed to update enrollment status", err);
-      }
     }
   };
 
