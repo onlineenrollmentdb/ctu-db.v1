@@ -120,7 +120,7 @@ const LoginPage = () => {
         </div>
 
         <div className="forgot-section">
-          <span>Forgot your password?</span>
+          <span>Forgot your password? </span>
           <button
             type="button"
             className="change-password-link"
@@ -132,7 +132,7 @@ const LoginPage = () => {
         </div>
 
         <p className="signup-text">
-          Account not activated? <a href="/signup">Verify here</a>
+          <a href="/signup">Signup here</a> here to activate account
         </p>
 
         <button className="btn t-btn" type="submit" disabled={loading}>

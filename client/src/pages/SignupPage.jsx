@@ -121,7 +121,7 @@
                 required
                 />
                 <button className="btn t-btn" type="submit" disabled={loading}>
-                {loading ? 'Checking...' : 'Verify Student ID'}
+                {loading ? 'Checking...' : 'Verify'}
                 </button>
             </>
             )}
@@ -165,7 +165,7 @@
             </>
             )}
 
-            <p style={{ fontSize: 12, marginTop: 10 }}>
+            <p className='signup-text'>
             Account already verified? <a href="/">Login here</a>
             </p>
         </form>

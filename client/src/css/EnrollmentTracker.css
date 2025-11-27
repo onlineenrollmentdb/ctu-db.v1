@@ -167,7 +167,7 @@
     left: 50%;
     transform: translateX(-50%);
     width: 4px;
-    height: 180px;
+    height: 200px;
   }
 
   .connector.done {

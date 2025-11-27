@@ -5,6 +5,9 @@ const nodemailer = require('nodemailer');
 const { updateStudentYearLevel } = require('./academicController');
 const settingsService = require('./settingsController'); // or correct path
 
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -67,38 +70,60 @@ exports.login = async (req, res) => {
 // STEP 1: Check Student ID & Send Code
 // ====================================
 exports.checkStudent = async (req, res) => {
-    try {
-        const { student_id } = req.body;
-        if (!student_id) return res.status(400).json({ error: 'Student ID is required.' });
+  try {
+    const { student_id } = req.body;
+    if (!student_id)
+      return res.status(400).json({ error: "Student ID is required." });
 
-        const [rows] = await db.execute('SELECT * FROM students WHERE student_id = ?', [student_id]);
-        if (!rows.length) return res.status(404).json({ error: 'Invalid student ID.' });
+    const [rows] = await db.execute(
+      "SELECT * FROM students WHERE student_id = ?",
+      [student_id]
+    );
 
-        const student = rows[0];
-        if (!student.email) return res.status(400).json({ error: 'No email associated with this student ID.' });
-        if (student.is_approved === 1) return res.status(400).json({ error: 'Student already approved.' });
+    if (!rows.length)
+      return res.status(404).json({ error: "Invalid student ID." });
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const expires = Date.now() + 5 * 60 * 1000; // 5 min
-        verificationCodes[student_id] = { code, expires };
+    const student = rows[0];
 
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: process.env.EMAIL_FROM, pass: process.env.EMAIL_PASS }
-        });
+    if (!student.email)
+      return res.status(400).json({
+        error: "No email associated with this student ID.",
+      });
 
-        await transporter.sendMail({
-            from: `"CTU Enrollment System" <${process.env.EMAIL_FROM}>`,
-            to: student.email,
-            subject: 'CTU Verification Code',
-            text: `Hello ${student.first_name},\n\nYour verification code is: ${code}\n\nThis code will expire in 5 minutes.\n\n- CTU Registrar`
-        });
+    if (student.is_approved === 1)
+      return res.status(400).json({
+        error: "Student already verified.",
+      });
 
-        res.json({ message: 'Verification code sent.' });
-    } catch (err) {
-        console.error('checkStudent error:', err);
-        res.status(500).json({ error: 'Server error while verifying student.' });
-    }
+    // Generate 6-digit verification code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = Date.now() + 5 * 60 * 1000; // valid for 5 minutes
+    verificationCodes[student_id] = { code, expires };
+
+    // Send email via SendGrid
+    const msg = {
+      to: student.email,
+      from: process.env.EMAIL_FROM,
+      subject: "📘 CTU Student Verification Code",
+      html: `
+        <h3>Hello ${student.first_name},</h3>
+        <p>Your CTU student verification code is:</p>
+        <h1 style="letter-spacing: 4px;">${code}</h1>
+        <p>This code will expire in <b>5 minutes</b>.</p>
+        <br/>
+        <p>– CTU Registrar</p>
+      `,
+    };
+
+    await sgMail.send(msg);
+
+    res.json({ message: "Verification code sent." });
+  } catch (err) {
+    console.error("checkStudent error:", err);
+    res
+      .status(500)
+      .json({ error: "Server error while verifying student." });
+  }
 };
 
 // ====================================

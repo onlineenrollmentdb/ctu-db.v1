@@ -202,7 +202,7 @@ useEffect(() => {
 
         {/* BELL */}
         <div className="notification-bell" ref={dropdownRef} onClick={toggleDropdown}>
-          <i className="bi bi-bell fs-5"></i>
+          <i className="bi bi-bell"></i>
           {notifications.some((n) => !n.is_seen) && <span className="notification-dot"></span>}
 
           {showDropdown && (
