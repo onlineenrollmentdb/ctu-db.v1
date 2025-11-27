@@ -7,7 +7,7 @@ exports.getNotifications = async (req, res) => {
 	const { user_type, user_id } = req.params;
 
 	try {
-		const [rows] = await db.query(
+		const [rows] = await db.execute(
 			`SELECT * FROM notifications
        WHERE user_type = ? AND user_id = ? AND is_deleted = 0
        ORDER BY created_at DESC
@@ -35,7 +35,7 @@ exports.createNotification = async (req, res) => {
 	}
 
 	try {
-		const [result] = await db.query(
+		const [result] = await db.execute(
 			`INSERT INTO notifications
        (user_type, user_id, title, message, type, link, sender_id, sender_type, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
@@ -82,7 +82,7 @@ exports.markAsSeen = async (req, res) => {
 	const { notification_id } = req.params;
 
 	try {
-		await db.query(
+		await db.execute(
 			"UPDATE notifications SET is_seen = 1 WHERE notification_id = ?",
 			[notification_id]
 		);
@@ -100,7 +100,7 @@ exports.markAsRead = async (req, res) => {
 	const { notification_id } = req.params;
 
 	try {
-		await db.query(
+		await db.execute(
 			"UPDATE notifications SET is_read = 1 WHERE notification_id = ?",
 			[notification_id]
 		);
@@ -118,7 +118,7 @@ exports.deleteNotification = async (req, res) => {
 	const { notification_id } = req.params;
 
 	try {
-		await db.query(
+		await db.execute(
 			"UPDATE notifications SET is_deleted = 1 WHERE notification_id = ?",
 			[notification_id]
 		);

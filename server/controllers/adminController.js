@@ -142,8 +142,6 @@ exports.getAllStudents = async (req, res) => {
 };
 
 
-
-
 exports.getApprovedStudents = async (req, res) => {
 	try {
 		const students = await fetchStudents({ onlyApproved: true });

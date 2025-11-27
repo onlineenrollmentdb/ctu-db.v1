@@ -28,7 +28,7 @@ exports.enrollStudent = async (req, res) => {
     if (!student) return res.status(404).json({ error: "Student not found" });
 
     // 2️⃣ Calculate total units from subjects
-    const [unitsRows] = await db.query(
+    const [unitsRows] = await db.execute(
       `SELECT SUM(units) AS total_units FROM subjects WHERE subject_section IN (?)`,
       [subject_sections]
     );

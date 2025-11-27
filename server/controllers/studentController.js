@@ -39,7 +39,7 @@ exports.getStudentById = async (req, res) => {
   const { student_id } = req.params;
 
   try {
-    const [rows] = await db.query(
+    const [rows] = await db.execute(
       `SELECT s.*,p.program_id, p.program_code, p.program_name
         FROM students s
         LEFT JOIN programs p ON s.program_id = p.program_id
@@ -64,7 +64,7 @@ exports.getAcademicHistory = async (req, res) => {
   const { student_id } = req.params;
 
   try {
-    const [rows] = await db.query(
+    const [rows] = await db.execute(
       `
       SELECT
         ah.history_id,
@@ -141,7 +141,7 @@ exports.updateStudent = async (req, res) => {
       WHERE student_id = ?
     `;
 
-    await db.query(sql, values);
+    await db.execute(sql, values);
 
     res.json({ message: "Student updated successfully" });
   } catch (err) {

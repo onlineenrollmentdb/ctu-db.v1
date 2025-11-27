@@ -7,7 +7,7 @@ const JWT_EXPIRES_IN = '12h';
 
 exports.getAllFaculty = async (req, res) => {
   try {
-    const [rows] = await db.query(`
+    const [rows] = await db.execute(`
       SELECT f.*, d.department_name
       FROM faculties f
       LEFT JOIN departments d ON f.department_id = d.department_id
@@ -29,7 +29,7 @@ exports.createFaculty = async (req, res) => {
     }
 
     // check duplicate email
-    const [existing] = await db.query(
+    const [existing] = await db.execute(
       "SELECT faculty_id FROM faculties WHERE email = ?",
       [email]
     );
@@ -40,7 +40,7 @@ exports.createFaculty = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const [result] = await db.query(
+    const [result] = await db.execute(
       `INSERT INTO faculties (first_name, last_name, email, department_id, role, password)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [first_name, last_name, email, department_id || null, role || "grader", hashedPassword]
@@ -78,7 +78,7 @@ exports.updateFaculty = async (req, res) => {
     sql += ` WHERE faculty_id=?`;
     params.push(id);
 
-    await db.query(sql, params);
+    await db.execute(sql, params);
 
     res.json({ message: "Faculty updated successfully" });
 
@@ -92,7 +92,7 @@ exports.deleteFaculty = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await db.query("DELETE FROM faculties WHERE faculty_id = ?", [id]);
+    await db.execute("DELETE FROM faculties WHERE faculty_id = ?", [id]);
 
     res.json({ message: "Faculty deleted successfully" });
 
