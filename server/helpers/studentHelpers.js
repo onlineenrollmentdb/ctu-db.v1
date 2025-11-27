@@ -22,9 +22,10 @@ exports.fetchStudents = async (options = {}, academic_year = null, semester = nu
             s.is_enrolled,
             s.is_approved,
 
+            ${includeProgram ? `
             p.program_id,
             p.program_code,
-            p.program_name,
+            p.program_name,` : ''}
 
             e.enrollment_id,
             e.academic_year,
@@ -35,13 +36,16 @@ exports.fetchStudents = async (options = {}, academic_year = null, semester = nu
         ${includeProgram ? `LEFT JOIN programs p ON s.program_id = p.program_id` : ''}
 
         LEFT JOIN (
-            SELECT
-                e1.*
+            SELECT e1.*
             FROM enrollments e1
-            WHERE 1=1
-            ${academic_year ? `AND e1.academic_year = '${academic_year}'` : ""}
-            ${semester ? `AND e1.semester = '${semester}'` : ""}
-            ORDER BY e1.enrollment_id DESC
+            INNER JOIN (
+                SELECT student_id, MAX(enrollment_id) AS latest_enrollment_id
+                FROM enrollments
+                WHERE 1=1
+                ${academic_year ? `AND academic_year = '${academic_year}'` : ''}
+                ${semester ? `AND semester = '${semester}'` : ''}
+                GROUP BY student_id
+            ) latest ON e1.student_id = latest.student_id AND e1.enrollment_id = latest.latest_enrollment_id
         ) e ON e.student_id = s.student_id
 
         WHERE 1=1
@@ -51,11 +55,12 @@ exports.fetchStudents = async (options = {}, academic_year = null, semester = nu
     if (onlyApproved) query += ` AND s.is_approved = 1`;
     if (onlyPending) query += ` AND s.is_approved = 0`;
 
-    query += ` GROUP BY s.student_id ORDER BY s.last_name, s.first_name`;
+    query += ` ORDER BY s.last_name, s.first_name`;
 
     const [rows] = await db.execute(query);
     return rows;
 };
+
 
 // 🔹 Fetch enrolled students only
 exports.fetchEnrolledStudents = async () => {

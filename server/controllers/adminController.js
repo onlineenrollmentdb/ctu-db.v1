@@ -130,10 +130,10 @@ exports.verify2FA = async (req, res) => {
 
 exports.getAllStudents = async (req, res) => {
   try {
-    const { academic_year, semester } = req.query; // get from query params
+    const { academic_year, semester } = req.query; // query params from URL
     const students = await fetchStudents({}, academic_year, semester);
 
-    // Make sure we always return an array
+    // Always return an array
     res.json(Array.isArray(students) ? students : []);
   } catch (err) {
     console.error("getAllStudents error:", err);
