@@ -1,11 +1,20 @@
-// db.js
-const mysql = require('mysql2/promise');
+import mysql from "mysql2/promise";
+import fs from "fs";
+import dotenv from "dotenv";
+dotenv.config();
 
 const db = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '',  
-    database: 'online_enrollment',
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  ssl: {
+    ca: process.env.DB_CA_CERT
+  }
 });
 
-module.exports = db;
+export default db;
