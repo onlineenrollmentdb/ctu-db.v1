@@ -1,5 +1,4 @@
 // server/db.js
-<<<<<<< HEAD
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 dotenv.config();
@@ -20,27 +19,6 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   ssl: sslOptions,
-=======
-const mysql = require('mysql2/promise'); // use promise version
-require('dotenv').config();
-
-const db = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  ssl: process.env.DB_CA_CERT
-    ? {
-        ca: process.env.DB_CA_CERT,
-        rejectUnauthorized: true
-      }
-    : {
-        rejectUnauthorized: false
-      }
->>>>>>> 62d0407b865cf89b383471d88a84db7aea15b3d4
 });
 
 // Helper to mimic db.execute() like before
