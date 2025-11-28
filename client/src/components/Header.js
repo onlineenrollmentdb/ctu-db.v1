@@ -119,7 +119,7 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
   return (
     <header className="header-grid">
       <div className="logo">
-        <img src={logo} alt="Logo" className="header-logo" />
+        <img src={logo} alt="Logo" className="header-logo" loading="lazy" />
       </div>
 
       <div className="nav-profile">
@@ -179,7 +179,7 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
 
         {/* Profile */}
         <div className="profile" ref={profileRef} onClick={() => setShowProfileDropdown(prev => !prev)}>
-          <img src={profilePicture} alt="Profile" className="avatar-img" />
+          <img src={profilePicture} alt="Profile" className="avatar-img" loading="lazy" />
           <p className="hide-on-mobile">{fullName}</p>
 
           {showProfileDropdown && (

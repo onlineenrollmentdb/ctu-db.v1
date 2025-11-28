@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-
-
 import API from "../api/api";
+import "../css/LoginPage.css";
+
+// Lazy load images (optional)
 import ctuLogo from "../img/ctu_logo.webp";
 import userIcon from "../img/user.webp";
 import keyIcon from "../img/key.webp";
-import "../css/LoginPage.css";
 
 const LoginPage = () => {
   const [userId, setUserId] = useState("");
@@ -16,63 +16,54 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { addToast } = useToast();
 
   const { login, user, role } = useAuth();
+  const { addToast } = useToast();
   const navigate = useNavigate();
 
   // Redirect after login
   useEffect(() => {
-    if (user && role) {
-      if (role === "admin" || role === "faculty") navigate("/admin/dashboard");
-      else if (role === "student") navigate("/home");
-    }
+    if (!user || !role) return;
+    if (role === "admin" || role === "faculty") navigate("/admin/dashboard");
+    else if (role === "student") navigate("/home");
   }, [user, role, navigate]);
 
-  const handleLogin = async (e) => {
+  const handleLogin = useCallback(async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    try {
-      // Admin login
-      try {
-        const res = await API.post("/admin/login", { username: userId, password });
+    const loginEndpoints = [
+      { url: "/admin/login", type: "admin", payload: { username: userId, password } },
+      { url: "/faculty/login", type: "faculty", payload: { username: userId, password } },
+      { url: "/auth/login", type: "student", payload: { student_id: userId, password } },
+    ];
 
-        // If backend says 2FA is required:
-        if (res.data.require2FA) {
+    for (const ep of loginEndpoints) {
+      try {
+        const res = await API.post(ep.url, ep.payload);
+        if (ep.type === "admin" && res.data.require2FA) {
           localStorage.setItem("pending_admin_id", res.data.admin_id);
           navigate("/auth");
-            return;
+          return;
         }
 
-        // If no 2FA (not used)
-        login(res.data.user, "admin", res.data.token);
-        return;
-      } catch {}
-
-      // Faculty login
-      try {
-        const res = await API.post("/faculty/login", { username: userId, password });
-        login(res.data.user, "faculty", res.data.token);
-        return;
-      } catch {}
-
-      // Student login
-      try {
-        const res = await API.post("/auth/login", { student_id: userId, password });
-        login(res.data.student, "student", res.data.token);
+        const userData = ep.type === "student" ? res.data.student : res.data.user;
+        login(userData, ep.type, res.data.token);
         return;
       } catch (err) {
-        setError(err.response?.data?.error || "Login failed. Check credentials.");
+        if (ep === loginEndpoints[loginEndpoints.length - 1]) {
+          setError(err.response?.data?.error || "Login failed. Check credentials.");
+        }
       }
-    } finally {
-      setLoading(false);
     }
-  };
 
-  const handleForgotPassword = async () => {
+    setLoading(false);
+  }, [userId, password, login, navigate]);
+
+  const handleForgotPassword = useCallback(async () => {
     if (!userId) return addToast("Enter your ID first.", "warning");
+
     try {
       setLoading(true);
       await API.post("/students/forgot-password", { student_id: userId });
@@ -83,20 +74,19 @@ const LoginPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, addToast]);
 
   return (
     <div className="t-body">
       <form className="t-container shadow-lg" onSubmit={handleLogin}>
-        <img src={ctuLogo} alt="CTU Logo" className="ctu-logo" />
+        <img src={ctuLogo} alt="CTU Logo" className="ctu-logo" loading="lazy" />
         <h1 className="login-title">CTU-DB</h1>
         <h3>Online Enrollment System</h3>
 
         {error && <p className="error-text">{error}</p>}
 
-        {/* 🔹 ID Input with icon */}
         <div className="input-with-icon">
-          <img src={userIcon} alt="User Icon" className="input-icon" />
+          <img src={userIcon} alt="User Icon" className="input-icon" loading="lazy" />
           <input
             type="text"
             placeholder="ID"
@@ -106,9 +96,8 @@ const LoginPage = () => {
           />
         </div>
 
-        {/* 🔹 Password Input with icon */}
         <div className="input-with-icon password-container">
-          <img src={keyIcon} alt="Key Icon" className="input-icon" />
+          <img src={keyIcon} alt="Key Icon" className="input-icon" loading="lazy" />
           <input
             type={showPassword ? "text" : "password"}
             placeholder="Password"
@@ -134,7 +123,7 @@ const LoginPage = () => {
         </div>
 
         <p className="signup-text">
-          <a href="/signup">Signup here</a> here to activate account
+          <a href="/signup">Signup here</a> to activate account
         </p>
 
         <button className="btn t-btn" type="submit" disabled={loading}>

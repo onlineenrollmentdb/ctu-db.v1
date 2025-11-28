@@ -6,9 +6,8 @@ const { updateStudentYearLevel } = require('./academicController');
 const settingsService = require('./settingsController'); // or correct path
 
 const sgMail = require('@sendgrid/mail');
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY); 
 
-require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '1d';

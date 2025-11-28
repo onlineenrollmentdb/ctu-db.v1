@@ -1,19 +1,24 @@
 import { io } from "socket.io-client";
 
-let socket;
+let socket = null;
 
-export const initSocket = () => {
+export const connectSocket = () => {
   if (!socket) {
-    socket = io(process.env.REACT_APP_SOCKET, {
-      transports: ["websocket"],
-    });
+    socket = io(process.env.REACT_APP_SOCKET_URL);
   }
   return socket;
 };
 
 export const getSocket = () => {
-  if (!socket) throw new Error("Socket not initialized. Call initSocket() first.");
+  if (!socket) {
+    throw new Error("Socket not initialized. Call connectSocket() first.");
+  }
   return socket;
 };
 
-export default initSocket(); // default export for legacy code
+export const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+};

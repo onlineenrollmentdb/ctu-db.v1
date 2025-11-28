@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 
-// Lazy load Header to reduce initial bundle
+// Lazy load Header
 const Header = lazy(() => import("./Header"));
 
 const Layout = React.memo(({ children }) => {
@@ -11,19 +11,16 @@ const Layout = React.memo(({ children }) => {
   const settings = useSettings();
   const navigate = useNavigate();
 
-  // Logout handler
   const handleLogout = useCallback(() => {
     logout();
     navigate("/");
   }, [logout, navigate]);
 
-  // Generic navigation handler generator
   const handleNavigate = useCallback(
     (path) => () => navigate(path),
     [navigate]
   );
 
-  // Define all Header navigation props dynamically
   const navProps = {
     onLogout: handleLogout,
     onEnroll: handleNavigate("/enroll"),

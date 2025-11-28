@@ -1,11 +1,11 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { SettingsProvider } from "./context/SettingsContext";
-import { useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import Layout from "./components/Layout";
 
-// 🔥 Lazy load pages (major performance boost)
+// Lazy load routes
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -16,51 +16,48 @@ const EnrollmentPage = lazy(() => import("./pages/EnrollmentPage"));
 const GradesPage = lazy(() => import("./pages/GradesPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
-// 🔥 Admin panel is usually very heavy — lazy load it
+// Admin split into its own chunk
 const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
 
-// 🔥 SocketListener should NOT load before login
-const SocketListener = lazy(() => import("./components/SocketListener"));
-
-function App() {
-  const { user } = useAuth();
+function AppRoutes() {
 
   return (
-    <ToastProvider>
-      <SettingsProvider>
-        <Router>
-          {/* Suspense is required for all lazy-loaded pages */}
-          <Suspense fallback={<div className="loading">Loading...</div>}>
+    <Suspense fallback={<div className="loading">Loading...</div>}>
+      <Routes>
 
-            {/* Load socket only when user is logged in */}
-            {user && <SocketListener />}
+        {/* PUBLIC ROUTES */}
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
-            <Routes>
+        {/* ADMIN */}
+        <Route
+          path="/admin/dashboard"
+          element={<AdminDashboard />}
+        />
 
-              {/* Public routes (no layout) */}
-              <Route path="/" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        {/* AUTH ROUTES */}
+        <Route path="/home" element={<Layout><HomePage /></Layout>} />
+        <Route path="/enroll" element={<Layout><EnrollmentPage /></Layout>} />
+        <Route path="/grades" element={<Layout><GradesPage /></Layout>} />
+        <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
 
-              {/* Admin route */}
-              <Route
-                path="/admin/dashboard"
-                element={<AdminDashboard currentUser={user} />}
-              />
-
-              {/* Pages wrapped in Layout */}
-              <Route path="/home" element={<Layout><HomePage /></Layout>} />
-              <Route path="/enroll" element={<Layout><EnrollmentPage /></Layout>} />
-              <Route path="/grades" element={<Layout><GradesPage /></Layout>} />
-              <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
-
-            </Routes>
-          </Suspense>
-        </Router>
-      </SettingsProvider>
-    </ToastProvider>
+      </Routes>
+    </Suspense>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <SettingsProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </SettingsProvider>
+      </AuthProvider>
+    </ToastProvider>
+  );
+}

@@ -1,20 +1,13 @@
 /* =================================================
 🌐 Global Styles (App.css)
 ================================================= */
-
-/* -------------------------------------------------
-Imports
-------------------------------------------------- */
-@import url("https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css");
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap");
-
 /* -------------------------------------------------
 Root Variables
 ------------------------------------------------- */
 :root {
   /* Brand Colors */
-  --primary-color: #172d9d;
-  --secondary-color: #00a9f2;
+  --primary-color: #4caf50;
+  --secondary-color: #00f28d;
   --color-highlight: #1a237e;
 
   /* Color Combinations */
@@ -435,6 +428,7 @@ Modern Forms
   background: var(--secondary-color);
 }
 
+
 /* -------------------------------------------------
 Modern Tables
 ------------------------------------------------- */
@@ -475,6 +469,57 @@ Modern Tables
   background: #f7f7fa;
 }
 
+/* -------------------------------------------------
+Subjects Records Table
+------------------------------------------------- */
+.students-table th,
+.students-table td,
+.subject-records th,
+.subject-records td {
+  border: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem; /* default padding for desktop */
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.subject-records .table-wrapper {
+  max-height: 450px;
+  overflow-y: auto;
+  margin-top: 1rem;
+  border: 1px solid #eee;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.subject-records .group-cell {
+  background: #f3f6ff;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--primary-color, #2563eb);
+  text-align: left;
+  padding: 0.75rem 0.5rem;
+  border-right: 2px solid #cbd5e1;
+  vertical-align: top;
+  position: sticky;
+  left: 0;
+}
+
+.subject-records .semester-divider {
+  height: 4px;
+  background: var(--primary-color, #2563eb);
+  border: none;
+}
+
+/* 🔹 Hover & Alternating Rows */
+.subject-records tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+.subject-records tbody tr:hover {
+  background: #f1f5f9;
+}
 
 /* -------------------------------------------------
 Responsive Layouts
@@ -491,19 +536,22 @@ Responsive Layouts
 }
 
 @media (max-width: 900px) {
-
-  .main-content{
+  .main-content {
     padding-bottom: 10%;
   }
   .grades-card {
     padding: 0.8rem;
   }
-  .group-cell{
-    font-size: 1rem;
+  .group-cell {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.5rem;
   }
   .students-table td,
-  .subject-records td {
-    font-size: 0.6rem;
+  .subject-records td,
+  .students-table th,
+  .subject-records th {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
   }
 }
 
@@ -511,11 +559,24 @@ Responsive Layouts
   .page-title {
     font-size: 1.2rem;
   }
+
+  /* Reduce row height and padding for small screens */
   .students-table td,
-  .subject-records td {
-    font-size: 0.5rem;
-    padding: 1px 2px;
+  .subject-records td,
+  .students-table th,
+  .subject-records th {
+    font-size: 0.4rem;
+    padding: 0.2rem 0.3rem;
+  }
+
+  .group-cell {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.3rem;
+  }
+
+  /* Optional: adjust info popup for mobile */
+  .subject-records .info-popup {
+    width: 160px;
+    font-size: 12px;
   }
 }
-
-

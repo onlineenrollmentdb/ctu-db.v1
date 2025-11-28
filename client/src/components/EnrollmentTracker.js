@@ -1,7 +1,7 @@
 // src/components/EnrollmentTracker.js
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import socket from "../socket"; // ✅ import socket.io client
+import {connectSocket} from "../socket";
 import "../css/EnrollmentTracker.css";
 
 const EnrollmentTracker = ({
@@ -48,6 +48,7 @@ const EnrollmentTracker = ({
   // 🔹 Listen to socket updates
   useEffect(() => {
     if (!student) return;
+    const socket = connectSocket(student.token);
 
     const handleStatusUpdate = (data) => {
       if (data.student_id === student.student_id) {

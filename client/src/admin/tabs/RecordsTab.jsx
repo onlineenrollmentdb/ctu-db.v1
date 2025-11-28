@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import API from "../../api/api";
 import AdminHeaderControls from "../components/AdminHeaderControls";
 import { useToast } from "../../context/ToastContext";
-import socket from "../../socket";
+import { getSocket } from "../../socket";
 import defaultUser from "../../img/default_user.webp";
 
 export default function RecordsTab({
@@ -18,6 +18,7 @@ export default function RecordsTab({
   filteredStudents,
   userRole,
 }) {
+  const socket = getSocket();
   const [filtered, setFiltered] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,20 +32,16 @@ export default function RecordsTab({
   const searchWrapperRef = useRef(null);
   const { addToast } = useToast();
 
-  // 🔹 Toggle states
   const toggleEditingGrades = () => {
     if (isEditingGrades) setEdited({});
     setIsEditingGrades(prev => !prev);
   };
 
   const toggleEditingDetails = () => {
-    if (isEditingDetails && selectedStudent) {
-      setStudentForm({ ...selectedStudent }); // Reset on cancel
-    }
+    if (isEditingDetails && selectedStudent) setStudentForm({ ...selectedStudent });
     setIsEditingDetails(prev => !prev);
   };
 
-  // 🔹 Fetch subjects
   const fetchSubjects = useCallback(async studentId => {
     setLoading(true);
     try {
@@ -59,31 +56,23 @@ export default function RecordsTab({
     }
   }, [addToast]);
 
-  // 🔹 Helper to safely construct full name
-  const getSafeFullName = (s) =>
+  const getSafeFullName = s =>
     `${s.first_name || ""} ${s.middle_name || ""} ${s.last_name || ""}`.replace(/\s+/g, ' ').trim();
 
-  // 🔹 Select student
   const handleSelectStudent = useCallback(
-    async (student) => {
+    async student => {
       try {
         setLoading(true);
-
-        // Fetch full student record from backend
         const res = await API.get(`/students/${student.student_id}`);
         const fullStudent = res.data;
-
-        const fullName = getSafeFullName(fullStudent); // ✅ Construct full name safely
-
         setSelectedStudent(fullStudent);
-        setStudentForm(fullStudent); // full student info
+        setStudentForm(fullStudent);
         setFiltered([]);
-        setSearchQuery(fullName); // ✅ Always include middle name
+        setSearchQuery(getSafeFullName(fullStudent));
         if (inputRef.current) inputRef.current.blur();
-
         await fetchSubjects(fullStudent.student_id);
       } catch (err) {
-        console.error("Failed to fetch full student data:", err);
+        console.error(err);
         addToast("Failed to load student details ❌", "error");
       } finally {
         setLoading(false);
@@ -92,39 +81,29 @@ export default function RecordsTab({
     [setSelectedStudent, setSearchQuery, fetchSubjects, addToast]
   );
 
-  // Initial search
   useEffect(() => {
-    if (initialSearch && initialSearch.student_id) {
+    if (initialSearch?.student_id) {
       setSearchQuery(initialSearch.full_name);
       handleSelectStudent(initialSearch);
     }
   }, [initialSearch, handleSelectStudent, setSearchQuery]);
 
-  // Search filter
   useEffect(() => {
-    if (!searchQuery) {
-      setFiltered([]);
-      return;
-    }
+    if (!searchQuery) return setFiltered([]);
     const term = searchQuery.toLowerCase();
     const matches = students.filter(
       s =>
         s.student_id.toString().includes(term) ||
-        (s.first_name && s.first_name.toLowerCase().includes(term)) ||
-        (s.middle_name && s.middle_name.toLowerCase().includes(term)) ||
-        (s.last_name && s.last_name.toLowerCase().includes(term)) ||
-        (s.full_name && s.full_name.toLowerCase().includes(term))
+        [s.first_name, s.middle_name, s.last_name, s.full_name]
+          .some(name => name?.toLowerCase().includes(term))
     );
     setFiltered(matches.slice(0, 5));
   }, [searchQuery, students]);
 
-  // Fetch subjects on selectedStudent change
   useEffect(() => {
-    if (!selectedStudent) return;
-    fetchSubjects(selectedStudent.student_id);
+    if (selectedStudent) fetchSubjects(selectedStudent.student_id);
   }, [selectedStudent, fetchSubjects]);
 
-  // Close search dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e) {
       if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target)) {
@@ -135,26 +114,20 @@ export default function RecordsTab({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Compute grade status
   const computeStatusPreview = (gradeVal, originalStatus) => {
-    if (gradeVal === "" || gradeVal === null || typeof gradeVal === "undefined") return originalStatus ?? "";
+    if (gradeVal === "" || gradeVal === null || gradeVal === undefined) return originalStatus ?? "";
     const n = parseFloat(gradeVal);
     if (isNaN(n)) return originalStatus ?? "";
     if (n === 0) return "INC";
     return n <= 3.0 ? "Passed" : "Failed";
   };
 
-  // Handle grade change
   const handleGradeChange = (subject_section, field, value) => {
-    setEdited(prev => {
-      const prevRec = prev[subject_section] || {};
-      return { ...prev, [subject_section]: { ...prevRec, [field]: value } };
-    });
+    setEdited(prev => ({ ...prev, [subject_section]: { ...prev[subject_section], [field]: value } }));
   };
 
   const hasEdits = Object.keys(edited).length > 0;
 
-  // Save grades
   const handleSaveGrades = async () => {
     if (!selectedStudent) return;
     const records = Object.entries(edited).map(([subject_section, obj]) => {
@@ -185,14 +158,13 @@ export default function RecordsTab({
 
       addToast("Grades updated successfully 🎓", "success");
     } catch (err) {
-      console.error("Error saving grades:", err);
+      console.error(err);
       addToast("Failed to save grades", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  // Save student details
   const handleSaveDetails = async () => {
     if (!selectedStudent) return;
     setSaving(true);
@@ -202,25 +174,20 @@ export default function RecordsTab({
       setIsEditingDetails(false);
       addToast("Student details updated 🧾", "success");
     } catch (err) {
-      console.error("Error updating student details:", err);
+      console.error(err);
       addToast("Failed to update student details", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  // Handle detail change
-  const handleDetailChange = (field, value) => {
-    setStudentForm(prev => ({ ...prev, [field]: value }));
-  };
+  const handleDetailChange = (field, value) => setStudentForm(prev => ({ ...prev, [field]: value }));
 
   const serverURL = process.env.REACT_APP_SOCKET;
-  const profilePicture = studentForm.profile_picture
-      ? `${serverURL}${studentForm.profile_picture}`
-      : defaultUser;
+  const profilePicture = studentForm.profile_picture ? `${serverURL}${studentForm.profile_picture}` : defaultUser;
 
   return (
-    <div className="students-tab">
+    <div className="flex flex-col gap-6">
       <AdminHeaderControls
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -234,35 +201,31 @@ export default function RecordsTab({
       />
 
       {selectedStudent ? (
-        <div className="students-layout">
-        {/* 🔹 Student Details */}
-        <div className="profile-wrapper">
-          <div className="profile-card">
-            <h2 className="profile-header">Student Details</h2>
-
-            <div className="profile-grid-advanced">
-              {/* Profile Picture */}
-              <div className="profile-picture">
-                <div className={`profile-pic-wrapper ${isEditingDetails ? "editable" : ""}`}>
-                  <img
-                    src={profilePicture|| defaultUser}
-                    alt="Profile"
-                    className="profile-img"
+        <div className="flex flex-col gap-6">
+          {/* Student Details */}
+          <div className="bg-white p-6 rounded-xl shadow-md flex flex-col md:flex-row gap-6">
+            {/* Profile Picture */}
+            <div className="relative w-32 h-32 flex-shrink-0">
+              <img
+                src={profilePicture}
+                alt="Profile"
+                className="w-full h-full object-cover rounded-full border border-gray-200"
+              />
+              {isEditingDetails && (
+                <label className="absolute inset-0 bg-black bg-opacity-30 text-white flex flex-col justify-center items-center rounded-full cursor-pointer">
+                  Change Profile
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => handleDetailChange("profile_picture", e.target.files[0])}
                   />
-                  {isEditingDetails && (
-                    <div className="overlay">
-                      <span>Change Profile?</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={e => handleDetailChange("profile_picture", e.target.files[0])}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+                </label>
+              )}
+            </div>
 
-              {/* Editable Fields - single line per field */}
+            {/* Student Fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1">
               {[
                 ["First Name", "first_name"], ["Middle Name", "middle_name"], ["Last Name", "last_name"],
                 ["Contact Number", "contact_number"], ["Student ID", "student_id"], ["Permanent Address", "permanent_address"],
@@ -280,49 +243,58 @@ export default function RecordsTab({
                   label={label}
                   name={field}
                   value={
-                    field === "program_code"
-                      ? `${studentForm.program_code} - ${studentForm.program_name}`
-                      : field === "year_section"
-                      ? `${studentForm.year_level} - ${studentForm.section}`
-                      : field === "is_enrolled"
-                      ? studentForm.is_enrolled === 1 ? "Enrolled" : "Not Enrolled"
+                    field === "program_code" ? `${studentForm.program_code} - ${studentForm.program_name}`
+                      : field === "year_section" ? `${studentForm.year_level} - ${studentForm.section}`
+                      : field === "is_enrolled" ? studentForm.is_enrolled === 1 ? "Enrolled" : "Not Enrolled"
                       : studentForm[field]
                   }
-                  editable={isEditingDetails && !["student_id", "program_code", "year_section", "student_status", "is_enrolled"].includes(field)}
+                  editable={isEditingDetails && !["student_id","program_code","year_section","student_status","is_enrolled"].includes(field)}
                   onChange={handleDetailChange}
                   type={field === "birth_date" ? "date" : "text"}
                 />
               ))}
             </div>
+          </div>
 
-            {/* Actions */}
-            {userRole === "admin" && (
-            <div className="profile-actions">
+          {/* Actions */}
+          {userRole === "admin" && (
+            <div className="flex gap-2">
               {isEditingDetails ? (
                 <>
-                  <button className="btn-save" onClick={handleSaveDetails} disabled={saving}>
+                  <button
+                    onClick={handleSaveDetails}
+                    disabled={saving}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
                     {saving ? "Saving..." : "Save"}
                   </button>
-                  <button className="btn-secondary" onClick={() => {setIsEditingDetails(false); setStudentForm({...selectedStudent});}}>
+                  <button
+                    onClick={() => { setIsEditingDetails(false); setStudentForm({ ...selectedStudent }); }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
+                  >
                     Cancel
                   </button>
                 </>
               ) : (
-                <button className="btn-edit" onClick={toggleEditingDetails}>Edit Details</button>
+                <button
+                  onClick={toggleEditingDetails}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                >
+                  Edit Details
+                </button>
               )}
             </div>
-            )}
-          </div>
-        </div>
+          )}
 
-
-
-          {/* 🔹 Subject Records */}
-          <div className="subject-records students-section">
-            <div className="subject-records-header">
-              <h3>Subject Records</h3>
-              {selectedStudent && userRole === "admin" && (
-                <button className="records-button" onClick={toggleEditingGrades}>
+          {/* Subject Records */}
+          <div className="bg-white p-6 rounded-xl shadow-md flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Subject Records</h3>
+              {userRole === "admin" && (
+                <button
+                  onClick={toggleEditingGrades}
+                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm"
+                >
                   {isEditingGrades ? "Cancel Edit" : "Edit Records"}
                 </button>
               )}
@@ -333,27 +305,35 @@ export default function RecordsTab({
             ) : (
               <>
                 {isEditingGrades && hasEdits && (
-                  <div style={{ marginBottom: 10 }}>
-                    <button className="records-button m-2" onClick={handleSaveGrades} disabled={saving}>
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      onClick={handleSaveGrades}
+                      disabled={saving}
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
+                    >
                       {saving ? "Saving..." : "Save Grades"}
                     </button>
-                    <button onClick={() => setEdited({})} disabled={saving} className="records-button">
+                    <button
+                      onClick={() => setEdited({})}
+                      disabled={saving}
+                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
+                    >
                       Discard
                     </button>
                   </div>
                 )}
 
-                <div className="table-wrapper">
-                  <table>
-                    <thead>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto border-collapse">
+                    <thead className="bg-gray-100">
                       <tr>
-                        <th>Year Group</th>
-                        <th>Section</th>
-                        <th>Code</th>
-                        <th>Description</th>
-                        <th>Units</th>
-                        <th>Grade</th>
-                        <th>Status</th>
+                        <th className="p-2 text-left">Year Group</th>
+                        <th className="p-2 text-left">Section</th>
+                        <th className="p-2 text-left">Code</th>
+                        <th className="p-2 text-left">Description</th>
+                        <th className="p-2 text-left">Units</th>
+                        <th className="p-2 text-left">Grade</th>
+                        <th className="p-2 text-left">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -366,25 +346,30 @@ export default function RecordsTab({
                         const sortedRecords = records.sort((a, b) => a.subject_code.localeCompare(b.subject_code));
                         return (
                           <React.Fragment key={group}>
-                            {idx > 0 && <tr><td colSpan={9} className="semester-divider"></td></tr>}
+                            {idx > 0 && <tr><td colSpan={7} className="py-2"></td></tr>}
                             {sortedRecords.map((s, i) => {
                               const editedRec = edited[s.subject_section];
                               const gradeValue = editedRec ? editedRec.grade : s.grade ?? "";
-                              const statusPreview = computeStatusPreview(editedRec && editedRec.grade !== undefined ? editedRec.grade : s.grade, s.status);
+                              const statusPreview = computeStatusPreview(editedRec?.grade ?? s.grade, s.status);
 
                               return (
-                                <tr key={`${group}-${i}`}>
-                                  {i === 0 && <td rowSpan={sortedRecords.length} className="group-cell"><strong>{group}</strong></td>}
-                                  <td>{s.subject_section}</td>
-                                  <td>{s.subject_code}</td>
-                                  <td>{s.subject_desc || "—"}</td>
-                                  <td>{s.units || "—"}</td>
-                                  <td>
+                                <tr key={`${group}-${i}`} className="hover:bg-gray-50">
+                                  {i === 0 && <td rowSpan={sortedRecords.length} className="p-2 font-semibold">{group}</td>}
+                                  <td className="p-2">{s.subject_section}</td>
+                                  <td className="p-2">{s.subject_code}</td>
+                                  <td className="p-2">{s.subject_desc || "—"}</td>
+                                  <td className="p-2">{s.units || "—"}</td>
+                                  <td className="p-2">
                                     {isEditingGrades ? (
-                                      <input className="grades-input" type="text" value={gradeValue ?? ""} onChange={e => handleGradeChange(s.subject_section, "grade", e.target.value)} />
-                                    ) : s.grade ?? "-"}
+                                      <input
+                                        type="text"
+                                        value={gradeValue ?? ""}
+                                        onChange={e => handleGradeChange(s.subject_section, "grade", e.target.value)}
+                                        className="w-16 text-center border border-gray-300 rounded px-1 py-0.5 text-sm"
+                                      />
+                                    ) : gradeValue ?? "-"}
                                   </td>
-                                  <td>{statusPreview ?? ""}</td>
+                                  <td className="p-2">{statusPreview ?? ""}</td>
                                 </tr>
                               );
                             })}
@@ -399,34 +384,27 @@ export default function RecordsTab({
           </div>
         </div>
       ) : (
-        <div className="no-selection">
-          <p>No student selected.</p>
-        </div>
+        <div className="text-center text-gray-500">No student selected.</div>
       )}
     </div>
   );
-};
+}
 
 const ProfileField = ({ label, value, name, onChange, editable, type = "text" }) => {
-  const formatValue = () => {
-    if (!value) return "";
-    if (type === "date") return value.split("T")[0];
-    return value;
-  };
-
+  const formatValue = () => (type === "date" && value ? value.split("T")[0] : value || "");
   return (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
+    <div className="flex flex-col">
+      <label className="text-sm font-medium text-gray-700">{label}</label>
       {editable ? (
         <input
-          className="form-input"
           type={type}
           name={name}
           value={formatValue()}
-          onChange={(e) => onChange(name, e.target.value)}
+          onChange={e => onChange(name, e.target.value)}
+          className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       ) : (
-        <div className="form-static">{formatValue() || "-"}</div>
+        <div className="text-gray-600 text-sm">{formatValue() || "-"}</div>
       )}
     </div>
   );

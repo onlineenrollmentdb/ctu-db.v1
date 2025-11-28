@@ -1,20 +1,19 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import API from "../../api/api";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { useToast } from "../../context/ToastContext";
-import socket from "../../socket";
+import {connectSocket} from "../../socket";
 
 export default function DashboardTab({ students, setStudents, setActiveTab, onViewDetails, settings }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortOptionsOpen, setSortOptionsOpen] = useState(false);
+  const [sortOptionsOpen] = useState(false);
   const [sortField, setSortField] = useState("first_name");
   const [sortDirection, setSortDirection] = useState("asc");
   const [filterBy] = useState("all");
   const [statusFilter] = useState("all");
-
   const [currentSemester, setCurrentSemester] = useState("");
   const [enrollmentStatus, setEnrollmentStatus] = useState("");
   const [activeDates, setActiveDates] = useState([]);
@@ -23,19 +22,21 @@ export default function DashboardTab({ students, setStudents, setActiveTab, onVi
 
   const { addToast } = useToast();
   const studentsPerPage = 10;
+  const socketRef = useRef(null);
 
-  const normalizeDate = (d) => {
+  // Normalize date to midnight
+  const normalizeDate = useCallback(d => {
     const date = new Date(d);
     date.setHours(0, 0, 0, 0);
     return date;
-  };
+  }, []);
 
   const isWithin = useCallback((date, start, end) => {
     const d = normalizeDate(date);
     return d >= normalizeDate(start) && d <= normalizeDate(end);
-  }, []);
+  }, [normalizeDate]);
 
-  // 🔹 Filtering
+  // 🔹 Filtered students
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
       const fullName = `${s.last_name} ${s.first_name} ${s.middle_name || ""}`.toLowerCase();
@@ -66,11 +67,13 @@ export default function DashboardTab({ students, setStudents, setActiveTab, onVi
       if (typeof valA === "string") valA = valA.toLowerCase();
       if (typeof valB === "string") valB = valB.toLowerCase();
 
-      return sortDirection === "asc" ? (valA > valB ? 1 : valA < valB ? -1 : 0)
-                                     : (valA < valB ? 1 : valA > valB ? -1 : 0);
+      return sortDirection === "asc"
+        ? valA > valB ? 1 : valA < valB ? -1 : 0
+        : valA < valB ? 1 : valA > valB ? -1 : 0;
     });
   }, [filteredStudents, sortField, sortDirection]);
 
+  // 🔹 Pagination
   const totalPages = Math.ceil(sortedStudents.length / studentsPerPage);
   const paginatedStudents = useMemo(() => {
     const startIndex = (currentPage - 1) * studentsPerPage;
@@ -80,24 +83,24 @@ export default function DashboardTab({ students, setStudents, setActiveTab, onVi
   // 🔹 Stats
   const stats = useMemo(() => {
     const total = students.length;
-    const cleared = students.filter((s) => s.enrollment_status === 1).length;
-    const approved = students.filter((s) => s.is_approved === 1).length;
-    const enrolled = students.filter((s) => s.is_enrolled === 1).length;
-    const regular = students.filter((s) => s.student_status === "Regular").length;
-    const irregular = students.filter((s) => s.student_status === "Irregular").length;
+    const cleared = students.filter(s => s.enrollment_status === 1).length;
+    const approved = students.filter(s => s.is_approved === 1).length;
+    const enrolled = students.filter(s => s.is_enrolled === 1).length;
+    const regular = students.filter(s => s.student_status === "Regular").length;
+    const irregular = students.filter(s => s.student_status === "Irregular").length;
     return { total, cleared, approved, enrolled, regular, irregular };
   }, [students]);
 
-  const yearData = useMemo(() => {
-    return [1, 2, 3, 4].map((lvl) => ({
-      year: `${lvl} Year`,
-      count: students.filter((s) => s.year_level === lvl).length,
-    }));
-  }, [students]);
+  // 🔹 Students by year
+  const yearData = useMemo(() => [1, 2, 3, 4].map(lvl => ({
+    year: `${lvl} Year`,
+    count: students.filter(s => s.year_level === lvl).length,
+  })), [students]);
 
-  // 🔹 Semester & Enrollment Highlight
+  // 🔹 Semester & enrollment highlight
   useEffect(() => {
     if (!settings) return;
+
     const now = new Date();
 
     const firstSemStart = normalizeDate(settings.first_sem_start);
@@ -147,23 +150,31 @@ export default function DashboardTab({ students, setStudents, setActiveTab, onVi
       message = "Enrollment is currently CLOSED";
     }
     setEnrollmentMessage(message);
-  }, [settings, isWithin]);
+  }, [settings, isWithin, normalizeDate]);
 
-  // 🔹 Socket Updates
+  // 🔹 Socket updates (safe cleanup)
   useEffect(() => {
-    socket.on("studentUpdated", (updated) => {
-      setStudents((prev) =>
-        prev.map((s) => (s.student_id === updated.student_id ? { ...s, ...updated } : s))
+    // Connect socket once on mount
+    socketRef.current = connectSocket();
+
+    const handler = (updated) => {
+      setStudents(prev =>
+        prev.map(s => s.student_id === updated.student_id ? { ...s, ...updated } : s)
       );
-    });
-    return () => socket.off("studentUpdated");
+    };
+
+    socketRef.current.on("studentUpdated", handler);
+
+    return () => {
+      socketRef.current.off("studentUpdated", handler); // cleanup on unmount
+    };
   }, [setStudents]);
 
-  // Reset page when filtering/sorting/search
+  // Reset page when filters/search changes
   useEffect(() => setCurrentPage(1), [sortField, sortDirection, filterBy, statusFilter, searchQuery]);
-
   // Handlers
   const handleViewDetails = useCallback((s) => onViewDetails(s), [onViewDetails]);
+
   const handleClearance = useCallback(async (student_id) => {
     try {
       await API.put("clearance/update", {
@@ -172,10 +183,9 @@ export default function DashboardTab({ students, setStudents, setActiveTab, onVi
         academic_year: settings.current_academic_year,
         semester: settings.current_semester,
       });
-      setStudents((prev) =>
-        prev.map((s) => (s.student_id === student_id ? { ...s, enrollment_status: 1 } : s))
-      );
-      socket.emit("studentUpdated", { student_id, enrollment_status: 1 });
+      setStudents(prev => prev.map(s => s.student_id === student_id ? { ...s, enrollment_status: 1 } : s));
+
+      socketRef.current?.emit("studentUpdated", { student_id, enrollment_status: 1 }); // ✅ use ref
       addToast("Student clearance updated", "success");
     } catch {
       addToast("Failed to update clearance", "error");
@@ -190,10 +200,9 @@ export default function DashboardTab({ students, setStudents, setActiveTab, onVi
         academic_year: settings.current_academic_year,
         semester: settings.current_semester,
       });
-      setStudents((prev) =>
-        prev.map((s) => (s.student_id === student_id ? { ...s, enrollment_status: 0 } : s))
-      );
-      socket.emit("studentUpdated", { student_id, enrollment_status: 0 });
+      setStudents(prev => prev.map(s => s.student_id === student_id ? { ...s, enrollment_status: 0 } : s));
+
+      socketRef.current?.emit("studentUpdated", { student_id, enrollment_status: 0 }); // ✅ use ref
       addToast("Clearance revoked", "warning");
     } catch {
       addToast("Failed to revoke clearance", "error");
@@ -206,165 +215,151 @@ export default function DashboardTab({ students, setStudents, setActiveTab, onVi
     setCurrentPage(1);
   };
 
-return (
-    <div className="dashboard mt-4">
+  return (
+    <div className="flex flex-col mt-4 space-y-6">
       {/* Summary Cards */}
-      <div className="dashboard-cards">
-        <div className="dashboard-card"><h3>Total Students</h3><p>{stats.total}</p></div>
-        <div className="dashboard-card"><h3>Regular</h3><p>{stats.regular}</p></div>
-        <div className="dashboard-card"><h3>Irregular</h3><p>{stats.irregular}</p></div>
-        <div className="dashboard-card"><h3>Cleared</h3><p>{stats.cleared}</p></div>
-        <div className="dashboard-card"><h3>Approved</h3><p>{stats.approved}</p></div>
-        <div className="dashboard-card"><h3>Enrolled</h3><p>{stats.enrolled}</p></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition transform hover:-translate-y-1">
+          <h3 className="text-gray-700 font-semibold mb-1 text-sm">Total Students</h3>
+          <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition transform hover:-translate-y-1">
+          <h3 className="text-gray-700 font-semibold mb-1 text-sm">Regular</h3>
+          <p className="text-2xl font-bold text-blue-600">{stats.regular}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition transform hover:-translate-y-1">
+          <h3 className="text-gray-700 font-semibold mb-1 text-sm">Irregular</h3>
+          <p className="text-2xl font-bold text-blue-600">{stats.irregular}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition transform hover:-translate-y-1">
+          <h3 className="text-gray-700 font-semibold mb-1 text-sm">Cleared</h3>
+          <p className="text-2xl font-bold text-blue-600">{stats.cleared}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition transform hover:-translate-y-1">
+          <h3 className="text-gray-700 font-semibold mb-1 text-sm">Approved</h3>
+          <p className="text-2xl font-bold text-blue-600">{stats.approved}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition transform hover:-translate-y-1">
+          <h3 className="text-gray-700 font-semibold mb-1 text-sm">Enrolled</h3>
+          <p className="text-2xl font-bold text-blue-600">{stats.enrolled}</p>
+        </div>
       </div>
 
       {/* Analytics */}
-      <div className="dashboard-analytics">
-        <div className="dashboard-section">
-          <h3>Students by Year</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Students by Year */}
+        <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+          <h3 className="text-gray-700 font-semibold mb-4 text-sm">Students by Year</h3>
           <BarChart width={500} height={300} data={yearData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="year" />
             <YAxis />
             <Tooltip />
-            <Bar dataKey="count" fill="var(--primary-color)" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
           </BarChart>
         </div>
 
-        {/* Calendar */}
-        <div className="dashboard-section">
-          <h3>Enrollment Calendar</h3>
-
-          <p style={{ textAlign: "center", fontWeight: "bold", marginBottom: 5 }}>
-            {currentSemester}
-          </p>
-
+        {/* Enrollment Calendar */}
+        <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition flex flex-col items-center">
+          <h3 className="text-gray-700 font-semibold mb-2 text-sm">Enrollment Calendar</h3>
+          <p className="font-bold mb-2">{currentSemester}</p>
           <Calendar
-            className="dashboard-calendar"
+            className="w-full rounded-lg shadow p-2"
             value={calendarMonth}
             onChange={() => {}}
             activeStartDate={calendarMonth}
-            showNavigation={true}
+            showNavigation
             next2Label={null}
             prev2Label={null}
             navigationLabel={({ label }) => <span>{label}</span>}
-            onActiveStartDateChange={({ activeStartDate }) => {
-              if (activeStartDate < normalizeDate(settings?.first_sem_start)) setCalendarMonth(normalizeDate(settings.first_sem_start));
-              else if (activeStartDate > normalizeDate(settings?.summer_end)) setCalendarMonth(normalizeDate(settings.summer_end));
-              else setCalendarMonth(activeStartDate);
-            }}
+            onActiveStartDateChange={({ activeStartDate }) => setCalendarMonth(activeStartDate)}
             tileClassName={({ date, view }) =>
-              view === "month" &&
-              activeDates.some((d) => d.toDateString() === date.toDateString())
-                ? "highlighted-date"
-                : null
+              view === "month" && activeDates.some(d => d.toDateString() === date.toDateString())
+                ? "bg-yellow-500 text-white rounded-md"
+                : ""
             }
           />
-
-          <p
-            style={{
-              textAlign: "center",
-              fontWeight: 600,
-              marginTop: 10,
-              color:
-                enrollmentStatus === "ongoing"
-                  ? "green"
-                  : enrollmentStatus === "upcoming"
-                  ? "orange"
-                  : "red",
-            }}
-          >
+          <p className={`mt-2 font-semibold ${enrollmentStatus === "ongoing" ? "text-green-600" : enrollmentStatus === "upcoming" ? "text-orange-500" : "text-red-500"}`}>
             {enrollmentMessage}
           </p>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="dashboard-section">
-        <div className="table-header">
-          <h3>Students List</h3>
-          <div className="search-bar">
-            <i className="bi bi-search"></i>
+      {/* Students Table */}
+      <div className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
+          <h3 className="text-gray-700 font-semibold text-sm">Students List</h3>
+          <div className="flex items-center gap-2 border rounded-lg px-2 py-1 w-full max-w-xs">
+            <i className="bi bi-search text-gray-400"></i>
             <input
-              id="studentSearch"
-              name="studentSearch"
               placeholder="Search by ID or Name"
+              className="outline-none text-sm w-full py-1 px-1"
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             />
           </div>
         </div>
 
-        <table className="students-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleSortClick("student_id")} style={{ cursor: "pointer" }}>
-                Student ID {sortField === "student_id" && <i className={`bi ${sortDirection === "asc" ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>}
-              </th>
-              <th onClick={() => handleSortClick("last_name")} style={{ cursor: "pointer" }}>
-                Last Name {sortField === "last_name" && <i className={`bi ${sortDirection === "asc" ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>}
-              </th>
-              <th onClick={() => handleSortClick("first_name")} style={{ cursor: "pointer" }}>
-                First Name {sortField === "first_name" && <i className={`bi ${sortDirection === "asc" ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>}
-              </th>
-              <th onClick={() => handleSortClick("year_level")} style={{ cursor: "pointer" }}>
-                Year {sortField === "year_level" && <i className={`bi ${sortDirection === "asc" ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>}
-              </th>
-              <th>Status</th>
-              <th
-                className="sort-container"
-                onClick={(e) => { e.stopPropagation(); setSortOptionsOpen(prev => !prev); }}
-              >
-                Sort <i className="bi bi-caret-down-fill"></i>
-                {sortOptionsOpen && (
-                  <div className="sort-dropdown" onClick={(e) => e.stopPropagation()}>
-                    {/* Sort & Filter controls here */}
-                    {/* Keep same as original */}
-                  </div>
-                )}
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {paginatedStudents.map((s) => (
-              <tr key={s.student_id}>
-                <td>{s.student_id}</td>
-                <td>{s.last_name}</td>
-                <td>{s.first_name}</td>
-                <td>{s.year_level}</td>
-                <td>{s.student_status}</td>
-                <td className="actions-cell">
-                  <i className="bi bi-three-dots-vertical menu-icon"></i>
-                  <div className="actions-menu">
-                    <button onClick={() => handleViewDetails(s)} data-tooltip="View">
-                      <i className="bi bi-eye"></i>
-                    </button>
-                    {(s.enrollment_status === 0 || s.enrollment_status === null) && s.is_approved === 1 && (
-                      <button onClick={() => handleClearance(s.student_id)} data-tooltip="Clear">
-                        <i className="bi bi-shield-check"></i>
-                      </button>
-                    )}
-                    {s.enrollment_status === 1 && s.is_approved === 1 && (
-                      <button onClick={() => handleRevokeClearance(s.student_id)} data-tooltip="Revoke Clearance">
-                        <i className="bi bi-shield-x"></i>
-                      </button>
-                    )}
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm table-auto border-separate border-spacing-0">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-2 text-left cursor-pointer" onClick={() => handleSortClick("student_id")}>
+                  Student ID {sortField === "student_id" && <i className={`bi ${sortDirection === "asc" ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>}
+                </th>
+                <th className="p-2 text-left cursor-pointer" onClick={() => handleSortClick("last_name")}>
+                  Last Name {sortField === "last_name" && <i className={`bi ${sortDirection === "asc" ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>}
+                </th>
+                <th className="p-2 text-left cursor-pointer" onClick={() => handleSortClick("first_name")}>
+                  First Name {sortField === "first_name" && <i className={`bi ${sortDirection === "asc" ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>}
+                </th>
+                <th className="p-2 text-left cursor-pointer" onClick={() => handleSortClick("year_level")}>
+                  Year {sortField === "year_level" && <i className={`bi ${sortDirection === "asc" ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>}
+                </th>
+                <th className="p-2 text-left">Status</th>
+                <th className="p-2 text-left relative">
+                  Sort <i className="bi bi-caret-down-fill"></i>
+                  {sortOptionsOpen && <div className="absolute top-full right-0 w-56 bg-white shadow rounded-xl p-2 z-50"></div>}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedStudents.map(s => (
+                <tr key={s.student_id} className="hover:bg-gray-50">
+                  <td className="p-2">{s.student_id}</td>
+                  <td className="p-2">{s.last_name}</td>
+                  <td className="p-2">{s.first_name}</td>
+                  <td className="p-2">{s.year_level}</td>
+                  <td className="p-2">{s.student_status}</td>
+                  <td className="p-2 relative text-right">
+                    <i className="bi bi-three-dots-vertical cursor-pointer text-gray-500 hover:text-blue-600"></i>
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex gap-1 opacity-0 pointer-events-none group-hover:opacity-100">
+                      <button onClick={() => handleViewDetails(s)} className="p-1 rounded hover:bg-gray-100">
+                        <i className="bi bi-eye"></i>
+                      </button>
+                      {(s.enrollment_status === 0 || s.enrollment_status === null) && s.is_approved === 1 &&
+                        <button onClick={() => handleClearance(s.student_id)} className="p-1 rounded hover:bg-green-100">
+                          <i className="bi bi-shield-check"></i>
+                        </button>
+                      }
+                      {s.enrollment_status === 1 && s.is_approved === 1 &&
+                        <button onClick={() => handleRevokeClearance(s.student_id)} className="p-1 rounded hover:bg-red-100">
+                          <i className="bi bi-shield-x"></i>
+                        </button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {/* Pagination */}
-        <div className="pagination">
-          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>&lt;</button>
-          <span>{currentPage}/{totalPages || 1}</span>
-          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}>&gt;</button>
+        <div className="flex justify-center items-center gap-4 mt-4 text-sm text-gray-700">
+          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 rounded bg-gray-200 hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed">&lt;</button>
+          <span>{currentPage}/{Math.max(totalPages, 1)}</span>
+          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="px-3 py-1 rounded bg-gray-200 hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed">&gt;</button>
         </div>
       </div>
     </div>

@@ -241,7 +241,7 @@ useEffect(() => {
       )}
 
       <div className="enrollment-subjects">
-        <div className="subject-records">
+        <div className=" subject-records">
           <h4>SUBJECT ENROLLMENT</h4>
 
           {loading ? (
@@ -323,7 +323,7 @@ useEffect(() => {
                           };
 
                           return (
-                            <tr key={s.subject_section} className="subject-row">
+                            <tr key={s.subject_section}>
                               {!isEnrollmentLocked && isIrregular && (
                                 <td style={{ position: "relative" }}>
                                   {eligibility.status === "blocked" ? (

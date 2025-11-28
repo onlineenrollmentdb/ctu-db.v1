@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import API from "../api/api";
-import socket from "../socket";
+import { connectSocket } from "../socket";
 import EnrollmentTracker from "../components/EnrollmentTracker";
 import "../css/HomePage.css";
 import "../css/EnrollmentTracker.css";
@@ -45,6 +45,7 @@ const HomePage = () => {
   // Socket listener for live updates
   useEffect(() => {
     if (!student) return;
+    const socket = connectSocket(student.token);
 
     const updateStatus = (data) => {
       if (data.student_id === student.student_id) {

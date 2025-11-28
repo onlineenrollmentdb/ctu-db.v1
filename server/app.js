@@ -1,13 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-const http = require('http');          // needed for socket.io
+const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path');          // ✅ <— missing import
-require('dotenv').config();
-
+const path = require('path');
 const app = express();
-const server = http.createServer(app); // wrap express with http server
-
+const server = http.createServer(app); 
 const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL,

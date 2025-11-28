@@ -1,7 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "../css/header.css";
 
-const AdminHeaderControls = ({
+/* ============================= */
+/* 🔹 Admin Header Controls */
+/* ============================= */
+export const AdminHeaderControls = ({
   searchQuery,
   setSearchQuery,
   departmentFilter,
@@ -11,11 +14,11 @@ const AdminHeaderControls = ({
   filterYear,
   setYearFilter,
   settings,
-  tab, // "records" | "enrollment" | "dashboard" | "subjects" | "settings" | "faculty" | "students"
-  filteredStudents = [], // only for Records tab
-  handleSelectStudent, // callback when selecting student
-  programs = [], // dynamic programs
-  departments = [], // dynamic departments for FacultyTab
+  tab,
+  filteredStudents = [],
+  handleSelectStudent,
+  programs = [],
+  departments = [],
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -88,32 +91,19 @@ const AdminHeaderControls = ({
   return (
     <div className="admin-header-controls">
       {tab === "settings" ? (
-        <>
-          <div className="settings-title">
-            <h2>Academic Settings</h2>
-          </div>
-          <div className="semester-year">
-            <p>
-              <strong>Semester:</strong> {settings?.current_semester || "N/A"}
-            </p>
-            <p>
-              <strong>School Year:</strong> {settings?.current_academic_year || "N/A"}
-            </p>
-          </div>
-        </>
+        <div className="settings-info">
+          <h2>Academic Settings</h2>
+          <p><strong>Semester:</strong> {settings?.current_semester || "N/A"}</p>
+          <p><strong>School Year:</strong> {settings?.current_academic_year || "N/A"}</p>
+        </div>
       ) : (
         <>
-          {/* Search Bar */}
           <div className="search-bar-wrapper" ref={wrapperRef}>
             <div className="search-bar">
               <i className="bi bi-search search-icon"></i>
               <input
                 type="text"
-                placeholder={
-                  tab === "records"
-                    ? "Search by ID or Name"
-                    : "Search by ID, Name, or Subject"
-                }
+                placeholder={tab === "records" ? "Search by ID or Name" : "Search by ID, Name, or Subject"}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -123,10 +113,7 @@ const AdminHeaderControls = ({
             {tab === "records" && isDropdownOpen && (
               <ul className="search-dropdown-overlay">
                 {filteredStudents
-                  .filter(
-                    (s, index, self) =>
-                      index === self.findIndex((stu) => stu.student_id === s.student_id)
-                  )
+                  .filter((s, index, self) => index === self.findIndex((stu) => stu.student_id === s.student_id))
                   .map((s, idx) => {
                     const fullName = getSafeFullName(s);
                     return (
@@ -148,64 +135,29 @@ const AdminHeaderControls = ({
             )}
           </div>
 
-          {/* Department Filter */}
           {showDepartmentFilter && (
-            <div className="filter">
-              <select
-                value={departmentFilter || ""}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-              >
-                <option value="">All Departments</option>
-                {departments.map((d) => (
-                  <option key={d.department_id} value={d.department_id}>
-                    {d.department_code}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select value={departmentFilter || ""} onChange={(e) => setDepartmentFilter(e.target.value)}>
+              <option value="">All Departments</option>
+              {departments.map((d) => <option key={d.department_id} value={d.department_id}>{d.department_code}</option>)}
+            </select>
           )}
 
-          {/* Program Filter (type-safe) */}
           {showProgramFilter && (
-            <div className="filter">
-              <select
-                value={programFilter || ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setProgramFilter(val !== "" ? Number(val) : "");
-                }}
-              >
-                <option value="">All Programs</option>
-                {programs.map((p) => (
-                  <option key={p.program_id} value={p.program_id}>
-                    {p.program_code}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select value={programFilter || ""} onChange={(e) => setProgramFilter(e.target.value ? Number(e.target.value) : "")}>
+              <option value="">All Programs</option>
+              {programs.map((p) => <option key={p.program_id} value={p.program_id}>{p.program_code}</option>)}
+            </select>
           )}
 
-          {/* Year Filter */}
           {showYearFilter && (
-            <div className="filter">
-              <select value={filterYear || ""} onChange={handleYearChange}>
-                <option value="">All Years</option>
-                <option value={1}>1st Year</option>
-                <option value={2}>2nd Year</option>
-                <option value={3}>3rd Year</option>
-                <option value={4}>4th Year</option>
-              </select>
-            </div>
+            <select value={filterYear || ""} onChange={handleYearChange}>
+              <option value="">All Years</option>
+              {[1,2,3,4].map(y => <option key={y} value={y}>{y}{"st"} Year</option>)}
+            </select>
           )}
 
-          <div className="semester-year">
-            <p>
-              <strong>Semester:</strong> {settings?.current_semester || "N/A"}
-            </p>
-            <p>
-              <strong>School Year:</strong> {settings?.current_academic_year || "N/A"}
-            </p>
-          </div>
+          <p><strong>Semester:</strong> {settings?.current_semester || "N/A"}</p>
+          <p><strong>School Year:</strong> {settings?.current_academic_year || "N/A"}</p>
         </>
       )}
     </div>
