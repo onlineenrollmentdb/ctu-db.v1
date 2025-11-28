@@ -136,7 +136,7 @@ const SignupPage = () => {
         </h3>
 
         {error && <p style={{ color: 'red' }}>{error}</p>}
-        {success && <p style={{ color: 'green' }}>{success}</p>}
+        {success && <p className='signup-text' style={{ textAlign: "center", margin: "10px 0" }}>{success}</p>}
 
         {/* Step 1: Student ID */}
         {step === 1 && (
