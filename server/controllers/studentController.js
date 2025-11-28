@@ -184,6 +184,10 @@ exports.forgotPassword = async (req, res) => {
 
     const student = rows[0];
 
+    // Check if student is approved
+    if (!student.is_approved)
+      return res.status(403).json({ error: "Student ID is not active" });
+
     if (!student.email)
       return res.status(400).json({ error: "No email on record" });
 
@@ -237,6 +241,7 @@ exports.forgotPassword = async (req, res) => {
     res.status(500).json({ error: "Server error sending reset link." });
   }
 };
+
 
 
 // ====================================
