@@ -4,7 +4,8 @@ const authController = require('../controllers/authController');
 
 router.post('/login', authController.login);
 router.post('/check-student', authController.checkStudent);
-router.post('/verify-code', authController.verifyCodeAndSetPassword);
+router.post('/verify-code', authController.verifyCode);
+router.post('/set-password', authController.setPassword);
 
 
 

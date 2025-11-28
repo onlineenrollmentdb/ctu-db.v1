@@ -1,19 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import API from '../api/api';
 import ctuLogo from '../img/ctu_logo.webp';
+import keyIcon from '../img/key.webp'; // icon for password fields
 import { useNavigate } from 'react-router-dom';
 import "../css/LoginPage.css";
 
 const SignupPage = () => {
-  const [step, setStep] = useState(1); // 1=ID, 2=Code
+  const [step, setStep] = useState(1); // 1=ID, 2=Code, 3=Password
   const [student_id, setStudentId] = useState('');
   const [code, setCode] = useState('');
+  const [token, setToken] = useState(''); // token received after code verification
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState([]);
+  const [confirmError, setConfirmError] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const navigate = useNavigate();
 
-  // STEP 1: Verify Student ID
+  // -----------------------------
+  // Step 1: Verify Student ID
+  // -----------------------------
   const handleCheckStudent = async (e) => {
     e.preventDefault();
     setError('');
@@ -23,43 +35,84 @@ const SignupPage = () => {
     try {
       const res = await API.post('/auth/check-student', { student_id });
       setSuccess(res.data.message);
-      setStep(2); // move to code verification step
+      setStep(2); // move to code verification
     } catch (err) {
-      if (err.response?.data?.error) setError(err.response.data.error);
-      else setError('Failed to check student ID.');
+      setError(err.response?.data?.error || 'Failed to check student ID.');
     } finally {
       setLoading(false);
     }
   };
 
-  // STEP 2: Verify Code and Redirect to Reset Password
+  // -----------------------------
+  // Step 2: Verify Code
+  // -----------------------------
   const handleVerifyCode = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
 
+    if (!/^\d{6}$/.test(code)) {
+      setError('Please enter a valid 6-digit code.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (!/^\d{6}$/.test(code)) {
-        setError('Please enter a valid 6-digit code.');
-        setLoading(false);
-        return;
-      }
-
-      // Verify code with backend
       const res = await API.post('/auth/verify-code', { student_id, code });
-
-      // Expect backend to return a token for resetting password
-      const { token } = res.data;
-
-      setSuccess('Code verified. Redirecting to reset password...');
-      setTimeout(() => {
-        navigate(`/reset-password/${token}`);
-      }, 1000);
-
+      setToken(res.data.token);
+      setSuccess('Code verified. Please set your password.');
+      setStep(3); // move to password step
     } catch (err) {
-      if (err.response?.data?.error) setError(err.response.data.error);
-      else setError('Verification failed.');
+      setError(err.response?.data?.error || 'Code verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // -----------------------------
+  // Step 3: Password Validation
+  // -----------------------------
+  useEffect(() => {
+    const errors = [];
+    if (password.length < 8) errors.push("At least 8 characters");
+    if (!/[A-Z]/.test(password)) errors.push("At least one uppercase letter");
+    if (!/[a-z]/.test(password)) errors.push("At least one lowercase letter");
+    if (!/\d/.test(password)) errors.push("At least one number");
+    if (!/[\W_]/.test(password)) errors.push("At least one special character");
+
+    setPasswordErrors(errors);
+
+    if (confirmPassword && password !== confirmPassword) {
+      setConfirmError("Passwords do not match.");
+    } else {
+      setConfirmError('');
+    }
+  }, [password, confirmPassword]);
+
+  const handleSetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    if (passwordErrors.length > 0) {
+      setError('Password does not meet requirements.');
+      setLoading(false);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await API.post('/auth/set-password', { token, password, confirmPassword });
+      setSuccess(res.data.message);
+      setTimeout(() => navigate('/'), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to set password.');
     } finally {
       setLoading(false);
     }
@@ -69,11 +122,17 @@ const SignupPage = () => {
     <div className="t-body">
       <form
         className="t-container"
-        onSubmit={step === 1 ? handleCheckStudent : handleVerifyCode}
+        onSubmit={
+          step === 1 ? handleCheckStudent :
+          step === 2 ? handleVerifyCode :
+          handleSetPassword
+        }
       >
         <img src={ctuLogo} alt="CTU Logo" className="ctu-logo"/>
         <h3>
-          {step === 1 ? 'Verify Student ID' : 'Enter Verification Code'}
+          {step === 1 ? 'Verify Student ID' :
+           step === 2 ? 'Enter Verification Code' :
+           'Set Your Password'}
         </h3>
 
         {error && <p style={{ color: 'red' }}>{error}</p>}
@@ -107,6 +166,54 @@ const SignupPage = () => {
             />
             <button className="btn t-btn" type="submit" disabled={loading}>
               {loading ? 'Verifying...' : 'Verify Code'}
+            </button>
+          </>
+        )}
+
+        {/* Step 3: Password */}
+        {step === 3 && (
+          <>
+            <div className="input-with-icon password-container">
+              <img src={keyIcon} alt="Key Icon" className="input-icon" />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="New Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <i onClick={() => setShowPassword(prev => !prev)} role="button">
+                {showPassword ? "Hide" : "Show"}
+              </i>
+            </div>
+
+            <div className="input-with-icon password-container">
+              <img src={keyIcon} alt="Key Icon" className="input-icon" />
+              <input
+                type={showConfirm ? "text" : "password"}
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+              <i onClick={() => setShowConfirm(prev => !prev)} role="button">
+                {showConfirm ? "Hide" : "Show"}
+              </i>
+            </div>
+
+            <ul>
+              {passwordErrors.map((err, idx) => (
+                <li key={idx} className="invalid">✗ {err}</li>
+              ))}
+              {password && passwordErrors.length === 0 && (
+                <li className="valid">✔ Password looks good</li>
+              )}
+            </ul>
+
+            {confirmError && <p className="invalid">{confirmError}</p>}
+
+            <button className="btn t-btn" type="submit" disabled={loading}>
+              {loading ? 'Saving...' : 'Set Password'}
             </button>
           </>
         )}

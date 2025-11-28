@@ -112,14 +112,7 @@ const LoginPage = () => {
 
         <div className="forgot-section">
           <span>Forgot your password? </span>
-          <button
-            type="button"
-            className="change-password-link"
-            onClick={handleForgotPassword}
-            disabled={loading}
-          >
-            Reset it here
-          </button>
+            <a href="#" onClick={handleForgotPassword}>Reset it here</a>
         </div>
 
         <p className="signup-text">

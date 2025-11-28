@@ -4,9 +4,10 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const { updateStudentYearLevel } = require('./academicController');
 const settingsService = require('./settingsController'); // or correct path
+require('dotenv').config();
 
 const sgMail = require('@sendgrid/mail');
-sgMail.setApiKey(process.env.SENDGRID_API_KEY); 
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -125,36 +126,56 @@ exports.checkStudent = async (req, res) => {
   }
 };
 
-// ====================================
-// STEP 2: Verify Code & Set Password
-// ====================================
-exports.verifyCodeAndSetPassword = async (req, res) => {
-    try {
-        const { student_id, code, password, confirmPassword } = req.body;
-        if (!student_id || !code || !password || !confirmPassword)
-            return res.status(400).json({ error: 'All fields are required.' });
-        if (password !== confirmPassword) return res.status(400).json({ error: 'Passwords do not match.' });
+exports.verifyCode = async (req, res) => {
+  try {
+    const { student_id, code } = req.body;
+    if (!student_id || !code) return res.status(400).json({ error: 'Student ID and code required.' });
 
-        const [rows] = await db.execute('SELECT * FROM students WHERE student_id = ?', [student_id]);
-        if (!rows.length) return res.status(404).json({ error: 'Invalid student ID.' });
-
-        const storedCode = verificationCodes[student_id];
-        if (!storedCode) return res.status(400).json({ error: 'No verification code found.' });
-        if (Date.now() > storedCode.expires) {
-            delete verificationCodes[student_id];
-            return res.status(400).json({ error: 'Verification code expired.' });
-        }
-        if (storedCode.code !== code) return res.status(400).json({ error: 'Invalid verification code.' });
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await db.execute('UPDATE students SET password = ?, is_approved = 1 WHERE student_id = ?', [hashedPassword, student_id]);
-        delete verificationCodes[student_id];
-
-        res.json({ message: 'Password set successfully. Account now active.' });
-    } catch (err) {
-        console.error('verifyCodeAndSetPassword error:', err);
-        res.status(500).json({ error: 'Server error during verification.' });
+    const storedCode = verificationCodes[student_id];
+    if (!storedCode) return res.status(400).json({ error: 'No verification code found.' });
+    if (Date.now() > storedCode.expires) {
+      delete verificationCodes[student_id];
+      return res.status(400).json({ error: 'Verification code expired.' });
     }
+    if (storedCode.code !== code) return res.status(400).json({ error: 'Invalid verification code.' });
+
+    const token = jwt.sign({ student_id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    res.json({ message: 'Code verified', token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error during code verification.' });
+  }
+};
+exports.setPassword = async (req, res) => {
+  try {
+    const { token, password, confirmPassword } = req.body;
+    if (!token || !password || !confirmPassword)
+      return res.status(400).json({ error: 'All fields are required.' });
+    if (password !== confirmPassword) return res.status(400).json({ error: 'Passwords do not match.' });
+
+    // Validate password like your ResetPasswordPage
+    const errors = [];
+    if (password.length < 8) errors.push("At least 8 characters");
+    if (!/[A-Z]/.test(password)) errors.push("At least one uppercase letter");
+    if (!/[a-z]/.test(password)) errors.push("At least one lowercase letter");
+    if (!/\d/.test(password)) errors.push("At least one number");
+    if (!/[\W_]/.test(password)) errors.push("At least one special character");
+    if (errors.length) return res.status(400).json({ error: 'Password invalid', details: errors });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const student_id = decoded.student_id;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.execute('UPDATE students SET password = ?, is_approved = 1 WHERE student_id = ?', [hashedPassword, student_id]);
+
+    // Delete the verification code
+    delete verificationCodes[student_id];
+
+    res.json({ message: 'Password set successfully. Account now active.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error during password setup.' });
+  }
 };
 
 // 🔹 Create enrollment for current semester if not exists
