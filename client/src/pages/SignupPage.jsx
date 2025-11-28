@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api/api';
 import ctuLogo from '../img/ctu_logo.webp';
-import keyIcon from '../img/key.webp'; // icon for password fields
+import keyIcon from '../img/key.webp';
 import { useNavigate } from 'react-router-dom';
 import "../css/LoginPage.css";
 
 const SignupPage = () => {
-  const [step, setStep] = useState(1); // 1=ID, 2=Code, 3=Password
+  const [step, setStep] = useState(1);
   const [student_id, setStudentId] = useState('');
   const [code, setCode] = useState('');
-  const [token, setToken] = useState(''); // token received after code verification
+  const [token, setToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordErrors, setPasswordErrors] = useState([]);
@@ -21,21 +21,30 @@ const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const [resendTimer, setResendTimer] = useState(0);
+
   const navigate = useNavigate();
 
-  // -----------------------------
+  // Countdown effect
+  useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => setResendTimer(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
   // Step 1: Verify Student ID
-  // -----------------------------
   const handleCheckStudent = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
-
     try {
       const res = await API.post('/auth/check-student', { student_id });
       setSuccess(res.data.message);
-      setStep(2); // move to code verification
+      setStep(2);
+      setResendTimer(60);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to check student ID.');
     } finally {
@@ -43,26 +52,22 @@ const SignupPage = () => {
     }
   };
 
-  // -----------------------------
   // Step 2: Verify Code
-  // -----------------------------
   const handleVerifyCode = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
-
     if (!/^\d{6}$/.test(code)) {
       setError('Please enter a valid 6-digit code.');
       setLoading(false);
       return;
     }
-
     try {
       const res = await API.post('/auth/verify-code', { student_id, code });
       setToken(res.data.token);
       setSuccess('Code verified. Please set your password.');
-      setStep(3); // move to password step
+      setStep(3);
     } catch (err) {
       setError(err.response?.data?.error || 'Code verification failed.');
     } finally {
@@ -70,9 +75,23 @@ const SignupPage = () => {
     }
   };
 
-  // -----------------------------
+  // Step 2b: Resend code
+  const handleResendCode = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      await API.post('/auth/check-student', { student_id });
+      setSuccess('Verification code resent.');
+      setResendTimer(60);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to resend code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Step 3: Password Validation
-  // -----------------------------
   useEffect(() => {
     const errors = [];
     if (password.length < 8) errors.push("At least 8 characters");
@@ -80,9 +99,7 @@ const SignupPage = () => {
     if (!/[a-z]/.test(password)) errors.push("At least one lowercase letter");
     if (!/\d/.test(password)) errors.push("At least one number");
     if (!/[\W_]/.test(password)) errors.push("At least one special character");
-
     setPasswordErrors(errors);
-
     if (confirmPassword && password !== confirmPassword) {
       setConfirmError("Passwords do not match.");
     } else {
@@ -95,7 +112,6 @@ const SignupPage = () => {
     setError('');
     setSuccess('');
     setLoading(true);
-
     if (passwordErrors.length > 0) {
       setError('Password does not meet requirements.');
       setLoading(false);
@@ -106,7 +122,6 @@ const SignupPage = () => {
       setLoading(false);
       return;
     }
-
     try {
       const res = await API.post('/auth/set-password', { token, password, confirmPassword });
       setSuccess(res.data.message);
@@ -166,6 +181,15 @@ const SignupPage = () => {
             />
             <button className="btn t-btn" type="submit" disabled={loading}>
               {loading ? 'Verifying...' : 'Verify Code'}
+            </button>
+            <button
+              type="button"
+              className={`btn t-btn ${resendTimer > 0 || loading ? 'disabled-btn' : ''}`}
+              onClick={handleResendCode}
+              disabled={resendTimer > 0 || loading}
+              style={{ marginTop: '10px' }}
+            >
+              {resendTimer > 0 ? `Resend Code (${resendTimer}s)` : 'Resend Code'}
             </button>
           </>
         )}

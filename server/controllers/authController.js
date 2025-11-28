@@ -117,7 +117,7 @@ exports.checkStudent = async (req, res) => {
 
     await sgMail.send(msg);
 
-    res.json({ message: "Verification code sent to your email please check (including spam folder)." });
+    res.json({ message: "Verification code sent to your email please check (including spam folder). code will expire in 5 minutes." });
   } catch (err) {
     console.error("checkStudent error:", err);
     res
@@ -137,7 +137,7 @@ exports.verifyCode = async (req, res) => {
       delete verificationCodes[student_id];
       return res.status(400).json({ error: 'Verification code expired.' });
     }
-    if (storedCode.code !== code) return res.status(400).json({ error: 'Invalid verification code.' });
+    if (storedCode.code !== code) return res.status(400).json({ error: 'Invalid/Expired verification code. Please try again.' });
 
     const token = jwt.sign({ student_id }, process.env.JWT_SECRET, { expiresIn: '15m' });
     res.json({ message: 'Code verified', token });
