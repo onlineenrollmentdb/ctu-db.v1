@@ -160,7 +160,7 @@ return (
         </div>
 
         {/* Subjects list bottom-right */}
-        <div className="card subjects subject-records">
+        <div className="card subjects modern-table">
         <h3>Subjects List</h3>
         {loading ? (
             <p>Loading...</p>

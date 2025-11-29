@@ -158,7 +158,6 @@ const EnrollForm = ({
             className="btn btn-primary"
             onClick={handleEnroll}
             disabled={selectedSubjects.length === 0 || overloadStatus === "exceeded"}
-            style={{ width: "100%" }}
           >
             Enroll Now
           </button>

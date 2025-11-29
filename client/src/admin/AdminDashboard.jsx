@@ -6,7 +6,6 @@ import API from "../api/api";
 import Sidebar from "./components/Sidebar";
 import './css/admin.css';
 import './css/student.css';
-import './css/faculty.css';
 import './css/settings.css';
 
 // Lazy-loaded tabs

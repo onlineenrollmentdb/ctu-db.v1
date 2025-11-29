@@ -46,16 +46,6 @@
   width: 100%;
 }
 
-/* FULL WIDTH Subject Records */
-.subject-records {
-  width: 100%;
-}
-
-/* OPTIONAL — horizontal scroll if table is wide */
-.subject-records .table-wrapper {
-  overflow-x: auto;
-}
-
 /* ============================= */
 /* 🔹 Card Style */
 /* ============================= */
@@ -72,7 +62,7 @@
 /* ============================= */
 /* Headers */
 /* ============================= */
-.subject-records-header,
+.modern-table-header,
 .student-details-header {
   display: flex;
   justify-content: space-between;
@@ -80,7 +70,7 @@
   margin-bottom: 0.75rem;
 }
 
-.subject-records-header h3 {
+.modern-table-header h3 {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-color, #333);

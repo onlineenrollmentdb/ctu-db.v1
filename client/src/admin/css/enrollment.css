@@ -149,12 +149,12 @@
   background-color: #5a6268;
 }
 
-.btn-danger {
+.btn-delete {
   background-color: #dc3545;
   color: #fff;
 }
 
-.btn-danger:hover {
+.btn-delete:hover {
   background-color: #c82333;
 }
 
@@ -165,36 +165,6 @@
 
 .btn-success:hover {
   background-color: #218838;
-}
-
-/* ----------------------------
-   Table: students list
----------------------------- */
-.students-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.students-table th,
-.students-table td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
-}
-
-.students-table th {
-  background-color: #f4f4f4;
-  font-weight: 600;
-}
-
-.students-table tr:nth-child(even) {
-  background-color: #fafafa;
-}
-
-.students-table tr:hover {
-  background-color: #f1f1f1;
 }
 
 /* ----------------------------

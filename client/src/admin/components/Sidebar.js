@@ -51,7 +51,7 @@ export default function Sidebar({
 
       <div className="mt-auto border-top pt-3">
         <button
-          className="btn w-100 text-danger fw-semibold"
+          className="btn btn-delete"
           onClick={() => {
             logout();
             navigate("/");

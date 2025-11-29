@@ -174,22 +174,20 @@ export default function GradesPage() {
             </div>
 
             {/* Subjects list bottom-right */}
-            <div className="grades-card subjects subject-records">
+            <div className="grades-card subjects modern-table">
               <h3>Subjects List</h3>
               {loading ? (
                 <p>Loading...</p>
               ) : totalSubjects === 0 ? (
                 <p>No Grades detected</p>
               ) : (
-                <div className="table-wrapper">
+                <div className="modern-table-wrapper">
                   <table>
                     <thead>
                       <tr>
                         <th>Code</th>
                         <th>Description</th>
                         <th>Units</th>
-                        <th>Year</th>
-                        <th>Semester</th>
                         <th>Grade</th>
                         <th>Status</th>
                       </tr>
@@ -221,8 +219,6 @@ export default function GradesPage() {
                                 <td>{s.subject_section}</td>
                                 <td>{s.subject_desc || "—"}</td>
                                 <td>{s.units || "—"}</td>
-                                <td>{s.year_level || "—"}</td>
-                                <td>{s.subject_semester || "—"}</td>
                                 <td>{s.grade ?? "—"}</td>
                                 <td>{s.status ?? "—"}</td>
                               </tr>

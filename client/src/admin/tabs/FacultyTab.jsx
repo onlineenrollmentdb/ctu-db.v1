@@ -135,11 +135,11 @@ export default function FacultyTab({ settings, faculty, setFaculty, fetchFaculty
         </button>
       </div>
 
-      <div className="faculty-table-container">
+      <div className="modern-table">
         {loading ? (
           <p className="loading-text">Loading...</p>
         ) : (
-          <table className="faculty-table">
+          <table className="modern-table-wrapper">
             <thead>
               <tr>
                 <th>ID</th>
@@ -168,10 +168,10 @@ export default function FacultyTab({ settings, faculty, setFaculty, fetchFaculty
                       </span>
                     </td>
                     <td className="action-buttons">
-                      <button className="btn-edit" onClick={() => openModal(f)}>
+                      <button className="btn btn-edit mw2" onClick={() => openModal(f)}>
                         Edit
                       </button>
-                      <button className="btn-delete" onClick={() => handleDelete(f.faculty_id)}>
+                      <button className="btn btn-delete mw2" onClick={() => handleDelete(f.faculty_id)}>
                         Delete
                       </button>
                     </td>

@@ -189,7 +189,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
             {loading ? (
               <p>Loading enrolled students...</p>
             ) : (
-              <table className="students-table">
+              <table className="modern-table">
                 <thead>
                   <tr>
                     <th>Student ID</th>
@@ -301,9 +301,9 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
               <div><strong>Status:</strong> {selectedStudent.student_status}</div>
 
               {/* Subjects */}
-              <div className="subjects-enrolled">
+              <div className="modern-table">
                 <h4>Subjects Enrolled</h4>
-                <div className="table-wrapper">
+                <div className="modern-table-wrapper">
                   <table>
                     <thead>
                       <tr>
@@ -340,7 +340,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
                   <button className="btn btn-success" onClick={() => handleEnrollmentAction("confirm")}>
                     Confirm Enrollment
                   </button>
-                  <button className="btn btn-danger" onClick={() => handleEnrollmentAction("revoke")}>
+                  <button className="btn btn-delete" onClick={() => handleEnrollmentAction("revoke")}>
                     Revoke Enrollment
                   </button>
               </div>

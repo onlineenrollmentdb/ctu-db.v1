@@ -100,6 +100,11 @@ exports.updateStudent = async (req, res) => {
   const { viewMode = "profile", ...data } = req.body;
 
   try {
+    // 🔹 FIX DATE FORMAT
+    if (data.birth_date) {
+      data.birth_date = data.birth_date.split("T")[0];
+    }
+
     let allowedFields = [];
 
     if (viewMode === "enrollment") {
@@ -123,6 +128,7 @@ exports.updateStudent = async (req, res) => {
 
     const updates = [];
     const values = [];
+
     allowedFields.forEach((field) => {
       if (data[field] !== undefined) {
         updates.push(`${field} = ?`);
@@ -147,9 +153,7 @@ exports.updateStudent = async (req, res) => {
   } catch (err) {
     console.error("Error updating student:", err);
 
-    // Handle duplicate entry error
     if (err.code === "ER_DUP_ENTRY") {
-      // Extract the field name from the error message
       const match = err.sqlMessage.match(/for key '(.+?)'/);
       const field = match ? match[1] : "field";
 
@@ -162,6 +166,7 @@ exports.updateStudent = async (req, res) => {
     res.status(500).json({ error: "Failed to update student" });
   }
 };
+
 
 
 // ====================================

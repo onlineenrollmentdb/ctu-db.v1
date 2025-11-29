@@ -241,13 +241,13 @@ useEffect(() => {
       )}
 
       <div className="enrollment-subjects">
-        <div className=" subject-records">
+        <div className="modern-table-wrapper">
           <h4>SUBJECT ENROLLMENT</h4>
 
           {loading ? (
-            <div className="table-wrapper">Loading subjects...</div>
+            <div className="modern-table">Loading subjects...</div>
           ) : (
-            <div className="table-wrapper">
+            <div className="modern-table">
               <table>
                 <thead>
                   <tr>
@@ -325,13 +325,13 @@ useEffect(() => {
                           return (
                             <tr key={s.subject_section}>
                               {!isEnrollmentLocked && isIrregular && (
-                                <td style={{ position: "relative" }}>
+                                <td className="checkbox">
                                   {eligibility.status === "blocked" ? (
                                     <>
                                       <Info
                                         size={18}
                                         color="#f39c12"
-                                        style={{ cursor: "pointer", width: "100%", margin: "10px 0" }}
+                                        style={{ cursor: "pointer", width: "100%" }}
                                         onClick={togglePopup}
                                       />
 
@@ -340,7 +340,7 @@ useEffect(() => {
                                           <div className="info-popup-title">Enrollment Blocked</div>
                                           <div className="info-popup-body">{eligibility.reason}</div>
                                           <button
-                                            className="close-btn"
+                                            className="btn close-btn"
                                             onClick={() => setOpenPopup(null)}
                                           >
                                             Close
@@ -351,6 +351,7 @@ useEffect(() => {
                                   ) : (
                                     <input
                                       type="checkbox"
+                                      style={{ cursor: "pointer", width: "100%" }}
                                       disabled={eligibility.status === "passed"}
                                       checked={selectedSubjects.some(
                                         (sub) => sub.subject_section === s.subject_section

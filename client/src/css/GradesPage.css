@@ -43,7 +43,7 @@
   min-height: 280px;
 }
 
-/* Subjects panel just uses global .subject-records */
+/* Subjects panel just uses global .modern-table */
 .subjects {
   grid-column: 3 / span 2;
   grid-row: 2;

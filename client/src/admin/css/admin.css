@@ -191,31 +191,6 @@ h3 {
   background: linear-gradient(to top, var(--color-2-p), var(--color-2-s)) !important;
 }
 
-
-/* ============================= */
-/* 🔹 Students Table */
-/* ============================= */
-.students-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-.students-table th,
-.students-table td {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-}
-.students-table th {
-  font-weight: 600;
-  color: #6b7280;
-  background: #fafafa;
-  position: relative;
-}
-.students-table tbody tr:hover {
-  background: #f9fafb;
-}
-
 /* ============================= */
 /* 🔹 Sort Dropdown */
 /* ============================= */
@@ -453,7 +428,7 @@ h3 {
 }
 .semester-divider td {
     background: #f1f5f9;
-    color: #1e3a8a;
+    color: var(--primary-color);
     font-weight: bold;
     text-align: left;
     padding: 0.5rem 1rem;
@@ -572,7 +547,7 @@ h3 {
     background: var(--primary-color, #2563eb);
     color: white;
 }
-.subject-details .btn-danger {
+.subject-details .btn-delete {
     background: #dc2626;
     color: white;
 }

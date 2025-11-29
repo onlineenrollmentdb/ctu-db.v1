@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import API from "../api/api";
 import "../css/ProfilePage.css";
 import defaultUser from "../img/default_user.webp";
 import { useToast } from "../context/ToastContext";
+import Cropper from "react-easy-crop";
+import getCroppedImg from "../utils/cropImage";
 
+// Labels
 const fieldLabels = {
   first_name: "First Name",
   middle_name: "Middle Name",
@@ -28,12 +31,12 @@ const fieldLabels = {
   mother_occupation: "Mother's Occupation",
   mother_contact: "Mother's Contact",
   guardian_name: "Guardian's Name",
-  guardian_relationship: "Guardian's Relation",
+  guardian_relationship: "Relation to Guardian",
   guardian_contact: "Guardian's Contact Number",
   guardian_email: "Guardian's Email",
 };
 
-// Required fields for validation
+// Required fields
 const requiredFields = [
   "first_name",
   "middle_name",
@@ -59,14 +62,22 @@ const ProfilePage = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [, setUploading] = useState(false);
 
+  // Cropper state
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [cropping, setCropping] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  // Load student profile
   useEffect(() => {
-    if (!student) {
-      navigate("/");
-      return;
-    }
-
+    if (!student) return navigate("/");
     API.get(`/students/${student.student_id}`)
       .then((res) => setData(res.data))
       .catch(() => setData(student))
@@ -76,23 +87,21 @@ const ProfilePage = () => {
   if (loading) return <div>Loading profile information...</div>;
   if (!data) return <div>No student data available.</div>;
 
-  const onChange = (name, value) => setData((prev) => ({ ...prev, [name]: value }));
+  const onChange = (name, value) =>
+    setData((prev) => ({ ...prev, [name]: value }));
 
   /** Save edited profile */
   const handleSaveClick = async () => {
     setLoading(true);
-
-    // Check for empty required fields
     for (let field of requiredFields) {
       if (!data[field] || data[field].toString().trim() === "") {
         addToast(`❌ ${fieldLabels[field] || field} is required`, "error");
         setLoading(false);
-        return; // Stop saving if any required field is empty
+        return;
       }
     }
 
     const allowedFields = Object.keys(fieldLabels);
-
     const filteredData = Object.keys(data)
       .filter((key) => allowedFields.includes(key))
       .reduce((obj, key) => {
@@ -108,33 +117,29 @@ const ProfilePage = () => {
       setEditing(false);
     } catch (err) {
       console.error(err.response?.data || err);
-
-      if (err.response?.data?.error) {
-        const message = err.response.data.error;
-        const fieldMatch = message.match(/Duplicate entry .* for key '(\w+)'/);
-        if (fieldMatch) {
-          const fieldKey = fieldMatch[1];
-          const label = fieldLabels[fieldKey] || fieldKey.replace(/_/g, " ");
-          addToast(`❌ ${label} is already used by another student`, "error");
-        } else {
-          addToast(`❌ ${message}`, "error");
-        }
-      } else {
-        addToast("❌ Failed to update profile", "error");
-      }
+      const message = err.response?.data?.error || "Failed to update profile";
+      addToast(`❌ ${message}`, "error");
     } finally {
       setLoading(false);
     }
   };
 
-  /** Upload profile picture */
-  const handlePictureChange = async (e) => {
+  /** Handle profile picture change */
+  const handlePictureChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setUploading(true);
+    setSelectedFile(URL.createObjectURL(file));
+    setShowCropper(true);
+  };
+
+  /** Save cropped image */
+  const saveCroppedImage = async () => {
+    if (!selectedFile || !croppedAreaPixels) return;
+    setCropping(true);
     try {
+      const croppedImage = await getCroppedImg(selectedFile, croppedAreaPixels);
       const formData = new FormData();
-      formData.append("profile_picture", file);
+      formData.append("profile_picture", croppedImage);
 
       const res = await API.post(
         `/students/${data.student_id}/upload-picture`,
@@ -149,11 +154,15 @@ const ProfilePage = () => {
       console.error(err);
       addToast("❌ Failed to upload picture", "error");
     } finally {
-      setUploading(false);
+      setCropping(false);
+      setShowCropper(false);
+      setSelectedFile(null);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
     }
   };
 
-  const serverURL = process.env.REACT_APP_SOCKET;
+  const serverURL = process.env.REACT_APP_API.replace("/api", "");
   const profilePicture = data.profile_picture
     ? `${serverURL}${data.profile_picture}`
     : defaultUser;
@@ -166,70 +175,151 @@ const ProfilePage = () => {
         <div className="profile-grid-advanced">
           {/* Profile Picture */}
           <div className="profile-picture">
-            <div className={`profile-pic-wrapper ${editing ? "editable" : ""}`}>
+            <div className={`profile-pic-wrapper ${editing ? "editing" : ""}`}>
               <img
                 src={profilePicture}
                 alt="Profile"
                 className="profile-img"
                 onError={(e) => (e.target.src = defaultUser)}
               />
+
               {editing && (
-                <div className="overlay">
-                  <span>Change Profile?</span>
-                  <input type="file" accept="image/*" onChange={handlePictureChange} />
+                <div className="overlay always-visible">
+                  <span className="overlay-text">Change Profile?</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePictureChange}
+                  />
                 </div>
               )}
             </div>
+
+            {/* Cropper modal */}
+{/* Cropper modal */}
+{showCropper && selectedFile && (
+  <div className="cropper-modal">
+    <div className="cropper-container">
+      <div className="cropper-inner">
+        <Cropper
+          image={selectedFile}
+          crop={crop}
+          zoom={zoom}
+          aspect={1}
+          cropShape="round"
+          showGrid={false}
+          onCropChange={setCrop}
+          onZoomChange={setZoom}
+          onCropComplete={onCropComplete}
+        />
+      </div>
+
+      {/* Zoom Slider */}
+      <input
+        type="range"
+        min={1}
+        max={3}
+        step={0.01}
+        value={zoom}
+        onChange={(e) => setZoom(Number(e.target.value))}
+        className="cropper-slider"
+      />
+
+      {/* Save / Cancel Buttons */}
+      <div className="cropper-actions">
+        <button
+          className="btn btn-primary"
+          onClick={saveCroppedImage}
+          disabled={cropping}
+        >
+          {cropping ? "Saving..." : "Save"}
+        </button>
+        <button
+          className="btn btn-cancel"
+          onClick={() => {
+            setShowCropper(false);
+            setSelectedFile(null);
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
           </div>
 
           {/* Editable Fields */}
-          <ProfileField label="First Name" name="first_name" value={data.first_name} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Middle Name" name="middle_name" value={data.middle_name} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Last Name" name="last_name" value={data.last_name} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Contact Number" name="contact_number" value={data.contact_number} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Student ID" name="student_id" value={data.student_id} editable={false} onChange={onChange} />
-          <ProfileField label="Permanent Address" name="permanent_address" value={data.permanent_address} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="District" name="congressional_district" value={data.congressional_district} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Gender" name="gender" value={data.gender} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Region" name="region" value={data.region} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Email Address" name="email" value={data.email} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Course" name="program_code" value={data.program_code + " - " + data.program_name} editable={false} onChange={onChange} />
-          <ProfileField label="Civil Status" name="civil_status" value={data.civil_status} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Year and Section" name="year_section" value={data.year_level + " - " + data.section} editable={false} onChange={onChange} />
-          <ProfileField label="Citizenship" name="citizenship" value={data.citizenship} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Birthday" name="birth_date" type="date" value={data.birth_date} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Birth Place" name="birthplace" value={data.birthplace} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Religion" name="religion" value={data.religion} editable={editing} onChange={onChange} required={true} />
-          <ProfileField label="Status" name="status" value={data.student_status} editable={false} onChange={onChange} required={true} />
-          <ProfileField label="Father's Name" name="father_name" value={data.father_name} editable={editing} onChange={onChange} />
-          <ProfileField label="Mother's Name" name="mother_name" value={data.mother_name} editable={editing} onChange={onChange} />
-          <ProfileField label="Father's Occupation" name="father_occupation" value={data.father_occupation} editable={editing} onChange={onChange} />
-          <ProfileField label="Mother's Occupation" name="mother_occupation" value={data.mother_occupation} editable={editing} onChange={onChange} />
-          <ProfileField label="Guardian's Name" name="guardian_name" value={data.guardian_name} editable={editing} onChange={onChange} />
-          <ProfileField label="Guardian's Relation" name="guardian_relationship" value={data.guardian_relationship} editable={editing} onChange={onChange} />
-          <ProfileField label="Guardian's Contact Number" name="guardian_contact" value={data.guardian_contact} editable={editing} onChange={onChange} />
-          <ProfileField label="Enrollment Status" name="enrollment_status" value={data.is_enrolled === 1 ? "Enrolled" : "Not Enrolled"} editable={false} onChange={onChange} />
+          {Object.keys(fieldLabels).map((key) => (
+            <ProfileField
+              key={key}
+              label={fieldLabels[key]}
+              name={key}
+              value={data[key]}
+              editable={editing}
+              onChange={onChange}
+              required={requiredFields.includes(key)}
+              type={key === "birth_date" ? "date" : "text"}
+            />
+          ))}
+
+          {/* Non-editable fields */}
+          <ProfileField
+            label="Student ID"
+            name="student_id"
+            value={data.student_id}
+            editable={false}
+            onChange={onChange}
+          />
+          <ProfileField
+            label="Course"
+            name="program_code"
+            value={data.program_code + " - " + data.program_name}
+            editable={false}
+            onChange={onChange}
+          />
+          <ProfileField
+            label="Year and Section"
+            name="year_section"
+            value={data.year_level + " - " + data.section}
+            editable={false}
+            onChange={onChange}
+          />
+          <ProfileField
+            label="Enrollment Status"
+            name="enrollment_status"
+            value={data.is_enrolled === 1 ? "Enrolled" : "Not Enrolled"}
+            editable={false}
+            onChange={onChange}
+          />
         </div>
 
         {/* Actions */}
         <div className="profile-actions">
           {editing ? (
             <>
-              <button className="btn-save" onClick={handleSaveClick} disabled={loading}>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveClick}
+                disabled={loading}
+              >
                 {loading ? "Saving..." : "Save"}
               </button>
               <button
-                className="btn-secondary"
+                className="btn btn-cancel"
                 onClick={() => {
                   setEditing(false);
-                  API.get(`/students/${data.student_id}`).then((res) => setData(res.data));
+                  API.get(`/students/${data.student_id}`).then((res) =>
+                    setData(res.data)
+                  );
                 }}
               >
                 Cancel
               </button>
             </>
           ) : (
-            <button className="btn-edit" onClick={() => setEditing(true)}>
+            <button className="btn btn-edit" onClick={() => setEditing(true)}>
               Edit
             </button>
           )}
@@ -240,7 +330,15 @@ const ProfilePage = () => {
 };
 
 /* ProfileField component */
-const ProfileField = ({ label, value, name, onChange, editable, type = "text", required }) => {
+const ProfileField = ({
+  label,
+  value,
+  name,
+  onChange,
+  editable,
+  type = "text",
+  required,
+}) => {
   const formatValue = () => {
     if (!value) return "";
     if (type === "date") return value.split("T")[0];

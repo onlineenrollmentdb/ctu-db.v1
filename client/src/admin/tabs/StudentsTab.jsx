@@ -143,16 +143,16 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
 
       <div className="students-header">
         <h2>Students Management</h2>
-        <button onClick={() => openModal()} className="btn-primary">
+        <button onClick={() => openModal()} className="btn btn-primary">
           + Add Student
         </button>
       </div>
 
-      <div className="students-table-container">
+      <div className="student table-container">
         {loading ? (
           <p className="loading-text">Loading...</p>
         ) : (
-          <table className="students-table">
+          <table className="modern-table">
             <thead>
               <tr>
                 <th>ID</th>
@@ -184,7 +184,7 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
                   </td>
                   <td className="action-buttons">
                     <button className="btn btn-primary" onClick={() => openModal(s)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDelete(s.student_id)}>Delete</button>
+                    <button className="btn btn-delete" onClick={() => handleDelete(s.student_id)}>Delete</button>
                   </td>
                 </tr>
               ))}

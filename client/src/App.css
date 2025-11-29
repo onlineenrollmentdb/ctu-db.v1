@@ -1,9 +1,6 @@
-/* =================================================
-🌐 Global Styles (App.css)
-================================================= */
-/* -------------------------------------------------
-Root Variables
-------------------------------------------------- */
+/* Tailwind base imports */
+
+
 :root {
   /* Brand Colors */
   --primary-color: #4caf50;
@@ -95,6 +92,10 @@ a:hover {
   text-decoration: underline;
   color: var(--primary-color);
 }
+.mw1{max-width: 50px;}
+.mw2{max-width: 100px;}
+.mw3{max-width: 150px;}
+.mw4{max-width: 200px;}
 
 /* -------------------------------------------------
 Layout
@@ -275,32 +276,6 @@ Layout
 
 
 /* -------------------------------------------------
-Forms
-------------------------------------------------- */
-form {
-  width: 100%;
-}
-
-input,
-select {
-  width: 100%;
-  padding: 10px;
-  margin: 10px 0;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 14px;
-  background: var(--bc);
-  color: var(--text-color);
-}
-
-input:focus,
-select:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px var(--primary-color)33;
-  outline: none;
-}
-
-/* -------------------------------------------------
 Buttons
 ------------------------------------------------- */
 .btn {
@@ -311,6 +286,8 @@ Buttons
   font-weight: 600;
   cursor: pointer;
   transition: 0.3s;
+  color: white;
+  border: none;
 }
 
 .btn:hover {
@@ -331,10 +308,17 @@ Buttons
   background-color: var(--gold);
   color: #000;
 }
-
+.btn-cancel{
+  background-color: var(--light-gray);
+  color: #000;
+}
+.btn-primary{
+  background-color: var(--primary-color);
+}
 .btn-delete {
   background-color: var(--error-red);
 }
+
 
 /* -------------------------------------------------
 Password Field
@@ -378,62 +362,6 @@ ul {
 .invalid {
   color: red;
 }
-
-/* -------------------------------------------------
-Modern Forms
-------------------------------------------------- */
-.form-modern {
-  background: var(--bc);
-  border-radius: 1.25rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-  padding: 2rem 1.5rem;
-  max-width: 420px;
-  margin: 2.5rem auto;
-  width: 100%;
-}
-
-.form-modern h2 {
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.form-modern input,
-.form-modern select {
-  border-radius: 0.5rem;
-  border: 1px solid #d1d5db;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  background: var(--bc);
-  color: var(--text-color);
-}
-
-.form-modern input:focus,
-.form-modern select:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px var(--primary-color)33;
-  outline: none;
-}
-
-.form-modern button {
-  border-radius: 0.5rem;
-  background: var(--primary-color);
-  color: var(--bc);
-  font-weight: 600;
-  padding: 0.75rem 1rem;
-  border: none;
-  width: 100%;
-  margin-top: 0.5rem;
-  transition: background 0.2s;
-}
-
-.form-modern button:hover {
-  background: var(--secondary-color);
-}
-
-
 /* -------------------------------------------------
 Modern Tables
 ------------------------------------------------- */
@@ -445,23 +373,31 @@ Modern Tables
 
 .modern-table {
   width: 100%;
-  min-width: 700px;
   border-collapse: collapse;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
   font-size: 0.9rem;
+  max-height: 450px;
+  overflow-y: auto;
+}
+
+.modern-table table {
+  width: 100%;
 }
 
 .modern-table th,
 .modern-table td {
-  padding: 14px 12px;
+  padding: 0.5rem 0.75rem;
   text-align: left;
+  vertical-align: middle;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
 }
 
 .modern-table th {
-  background: var(--bc);
-  color: var(--primary-color);
+  background: var(--bc, #f1f5f9);
+  color: var(--primary-color, #2563eb);
   font-weight: 600;
   border-bottom: 2px solid #eee;
 }
@@ -470,36 +406,15 @@ Modern Tables
   border-bottom: 1px solid #eee;
 }
 
+.modern-table tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
 .modern-table tbody tr:hover {
-  background: #f7f7fa;
+  background: #f1f5f9;
 }
 
-/* -------------------------------------------------
-Subjects Records Table
-------------------------------------------------- */
-.students-table th,
-.students-table td,
-.subject-records th,
-.subject-records td {
-  border: 1px solid #e2e8f0;
-  font-size: 0.9rem;
-  padding: 0.5rem 0.75rem; /* default padding for desktop */
-  text-align: left;
-  vertical-align: middle;
-  white-space: nowrap;
-  width: 100%;
-}
-
-.subject-records .table-wrapper {
-  max-height: 450px;
-  overflow-y: auto;
-  margin-top: 1rem;
-  border: 1px solid #eee;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-}
-
-.subject-records .group-cell {
+.modern-table .group-cell {
   background: #f3f6ff;
   font-weight: 600;
   font-size: 0.82rem;
@@ -512,18 +427,67 @@ Subjects Records Table
   left: 0;
 }
 
-.subject-records .semester-divider {
+.modern-table .semester-divider {
   height: 4px;
   background: var(--primary-color, #2563eb);
   border: none;
 }
 
-/* 🔹 Hover & Alternating Rows */
-.subject-records tbody tr:nth-child(even) {
-  background: #f9fafb;
+/* -------------------------------------------------
+Checkbox column
+------------------------------------------------- */
+.checkbox {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative; /* for popup positioning */
 }
-.subject-records tbody tr:hover {
-  background: #f1f5f9;
+
+.checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+}
+
+/* -------------------------------------------------
+Info Popup
+------------------------------------------------- */
+.info-popup {
+  position: absolute;
+  top: 50%;
+  left: 110%; /* show to the right of checkbox */
+  transform: translateY(-50%);
+  z-index: 10;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-width: 200px;
+  max-width: 280px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 0.85rem;
+}
+
+.info-popup-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.info-popup-body {
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.info-popup .close-btn {
+  display: block;
+  margin-top: 0.25rem;
+  background: #f44336;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
 }
 
 /* -------------------------------------------------
@@ -541,35 +505,22 @@ Responsive Layouts
 }
 
 @media (max-width: 900px) {
-  .main-content {
-    padding-bottom: 10%;
-  }
-  .grades-card {
-    padding: 0.8rem;
-  }
-  .group-cell {
-    font-size: 0.9rem;
-    padding: 0.5rem 0.5rem;
-  }
-  .students-table td,
-  .subject-records td,
-  .students-table th,
-  .subject-records th {
+  .modern-table td,
+  .modern-table th {
     font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
+  }
+
+  .group-cell {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.5rem;
   }
 }
 
 @media (max-width: 500px) {
-  .page-title {
-    font-size: 1.2rem;
-  }
-  /* Reduce row height and padding for small screens */
-  .students-table td,
-  .subject-records td,
-  .students-table th,
-  .subject-records th {
-    font-size: 0.4rem;
+  .modern-table td,
+  .modern-table th {
+    font-size: 0.5rem;
     padding: 0.2rem 0.3rem;
   }
 
@@ -578,9 +529,32 @@ Responsive Layouts
     padding: 0.3rem 0.3rem;
   }
 
-  /* Optional: adjust info popup for mobile */
-  .subject-records .info-popup {
+  .info-popup {
     width: 160px;
-    font-size: 12px;
+    font-size: 0.75rem;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+	.info-popup-title { font-size: 0.5rem; }
+}
+@media (max-width: 370px) {
+  .modern-table td,
+  .modern-table th {
+    font-size: 0.4rem;
+    padding: 0.1rem 0.2rem;
+  }
+
+  .group-cell {
+    font-size: 0.6rem;
+    padding: 0.2rem;
+  }
+
+  .info-popup {
+    width: 100px;
+    font-size: 0.4rem;
+  }
+  .checkbox input[type="checkbox"], .checkbox svg {
+    height: 10px;
   }
 }
