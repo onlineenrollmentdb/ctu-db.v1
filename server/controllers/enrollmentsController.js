@@ -2,139 +2,71 @@ const db = require("../db");
 const { sendNotification } = require("../helpers/notificationHelper");
 const settingsController = require("./settingsController");
 
-// Enrollment status cache
-let enrollmentStatusCache = {
-  data: {},
-  ttl: 1 * 60 * 1000,
-};
-
 // ✅ Enroll a student
 exports.enrollStudent = async (req, res) => {
   const { student_id, semester, academic_year, subject_sections } = req.body;
-
   if (!student_id || !semester || !academic_year || !Array.isArray(subject_sections) || !subject_sections.length) {
     return res.status(400).json({ error: "Missing required fields or subjects." });
   }
 
   try {
-    console.log("[Enroll] Start request:", req.body);
-
-    // 1️⃣ Check if student exists
-    const [[student]] = await db.execute(
-      `SELECT student_status FROM students WHERE student_id = ?`,
-      [student_id]
-    );
+    // Check student
+    const [[student]] = await db.execute(`SELECT student_status FROM students WHERE student_id = ?`, [student_id]);
     if (!student) return res.status(404).json({ error: "Student not found" });
 
-    // 2️⃣ Calculate total units
+    // Calculate units
     const placeholders = subject_sections.map(() => "?").join(", ");
-    const [unitsRows] = await db.execute(
-      `SELECT SUM(units) AS total_units FROM subjects WHERE subject_section IN (${placeholders})`,
-      subject_sections
-    );
+    const [unitsRows] = await db.execute(`SELECT SUM(units) AS total_units FROM subjects WHERE subject_section IN (${placeholders})`, subject_sections);
     const total_units = unitsRows[0]?.total_units || 0;
 
-    // 3️⃣ Check if enrollment exists
+    // Check enrollment
     const [existing] = await db.execute(
-      `SELECT enrollment_id FROM enrollments
-       WHERE student_id = ? AND semester = ? AND academic_year = ?`,
+      `SELECT enrollment_id FROM enrollments WHERE student_id = ? AND semester = ? AND academic_year = ?`,
       [student_id, semester, academic_year]
     );
 
     let enrollment_id;
-    let enrollment_status;
+    const enrollment_status = 2; // submitted
 
     if (existing.length > 0) {
-      // 4️⃣ Update existing enrollment
       enrollment_id = existing[0].enrollment_id;
-      enrollment_status = 2; // Submitted
-
-      await db.execute(
-        `UPDATE enrollments
-         SET enrollment_status = ?, total_units = ?
-         WHERE enrollment_id = ?`,
-        [enrollment_status, total_units, enrollment_id]
-      );
-
-      // 5️⃣ Replace subjects
+      await db.execute(`UPDATE enrollments SET enrollment_status = ?, total_units = ? WHERE enrollment_id = ?`,
+        [enrollment_status, total_units, enrollment_id]);
       await db.execute(`DELETE FROM enrollment_subjects WHERE enrollment_id = ?`, [enrollment_id]);
-
-      const values = subject_sections.map(sec => [enrollment_id, sec]);
-      const placeholdersSubjects = values.map(() => "(?, ?)").join(", ");
-      const flatValues = values.flat();
-
-      await db.execute(
-        `INSERT INTO enrollment_subjects (enrollment_id, subject_section) VALUES ${placeholdersSubjects}`,
-        flatValues
-      );
     } else {
-      // 6️⃣ Insert new enrollment
-      enrollment_status = 2;
-
       const [result] = await db.execute(
-        `INSERT INTO enrollments (student_id, enrollment_status, academic_year, semester, total_units)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO enrollments (student_id, enrollment_status, academic_year, semester, total_units) VALUES (?, ?, ?, ?, ?)`,
         [student_id, enrollment_status, academic_year, semester, total_units]
       );
       enrollment_id = result.insertId;
-
-      const values = subject_sections.map(sec => [enrollment_id, sec]);
-      const placeholdersSubjects = values.map(() => "(?, ?)").join(", ");
-      const flatValues = values.flat();
-
-      await db.execute(
-        `INSERT INTO enrollment_subjects (enrollment_id, subject_section) VALUES ${placeholdersSubjects}`,
-        flatValues
-      );
     }
 
-    // 7️⃣ Update student enrolled flag
+    // Insert subjects
+    const values = subject_sections.map(sec => [enrollment_id, sec]);
+    const placeholdersSubjects = values.map(() => "(?, ?)").join(", ");
+    const flatValues = values.flat();
+    await db.execute(`INSERT INTO enrollment_subjects (enrollment_id, subject_section) VALUES ${placeholdersSubjects}`, flatValues);
+
+    // Update student flag
     await db.execute(`UPDATE students SET is_enrolled = 1 WHERE student_id = ?`, [student_id]);
 
-    // 8️⃣ Send notification
-    await sendNotification({
-      user_type: "admin",
-      user_id: 0,
-      title: "Enrollment",
-      message: `Student ${student_id} has enrolled successfully.`,
-      type: "enrollment",
-      sender_id: student_id,
-      sender_type: "student",
-    });
-
-    // 9️⃣ Update cache immediately
+    // Update cache immediately
     const cacheKey = `${student_id}-${semester}-${academic_year}`;
-    enrollmentStatusCache.data[cacheKey] = {
-      step: enrollment_status,
-      timestamp: Date.now(),
-    };
+    enrollmentStatusCache.data[cacheKey] = { step: enrollment_status, enrollment_id, timestamp: Date.now() };
 
-    // 10️⃣ Emit socket event
+    // Emit socket event
     const io = req.app.get("io");
-    if (io) {
-      io.emit("enrollment-status-updated", {
-        student_id,
-        enrollment_id,
-        status: enrollment_status,
-      });
-    }
+    io?.emit("enrollment-status-updated", { student_id, enrollment_id, status: enrollment_status });
 
-    console.log(`[Enroll] Student ${student_id} enrolled. Enrollment ID: ${enrollment_id}`);
-
-    // 11️⃣ Respond with updated status
-    res.status(201).json({
-      message: "Enrollment successful",
-      enrollment_id,
-      total_units,
-      subjectsEnrolled: subject_sections,
-      enrollment_status, // ⚡ new field
-    });
+    // Respond
+    res.status(201).json({ message: "Enrollment successful", enrollment_id, total_units, subjectsEnrolled: subject_sections, enrollment_status });
 
   } catch (err) {
     console.error("[Enroll] Unexpected error:", err);
     res.status(500).json({ error: "Failed to enroll student" });
   }
 };
+
 
 // ✅ Get student grades
 exports.getStudentGrades = async (req, res) => {
@@ -154,10 +86,15 @@ exports.getStudentGrades = async (req, res) => {
 	}
 };
 
-// ✅ Fetch enrollment status based on academic year and semester
+let enrollmentStatusCache = {
+  data: {},
+  ttl: 2 * 1000,
+};
+
+// Fetch enrollment status
 exports.getEnrollmentStatus = async (req, res) => {
   const { student_id } = req.params;
-  const { semester, academic_year } = req.query; // Expect these from frontend
+  const { semester, academic_year } = req.query;
 
   if (!semester || !academic_year) {
     return res.status(400).json({ error: "Semester and academic_year are required." });
@@ -165,18 +102,14 @@ exports.getEnrollmentStatus = async (req, res) => {
 
   try {
     const now = Date.now();
-
-    // 🔹 Check cache first (optional)
     const cacheKey = `${student_id}-${semester}-${academic_year}`;
-    if (
-      enrollmentStatusCache.data[cacheKey] &&
-      now - enrollmentStatusCache.data[cacheKey].timestamp < enrollmentStatusCache.ttl
-    ) {
-      const cached = enrollmentStatusCache.data[cacheKey];
-      return res.json({ step: cached.step, enrollment_id: cached.enrollment_id || null });
+
+    // Return cache if valid
+    if (enrollmentStatusCache.data[cacheKey] && now - enrollmentStatusCache.data[cacheKey].timestamp < enrollmentStatusCache.ttl) {
+      return res.json(enrollmentStatusCache.data[cacheKey]);
     }
 
-    // 🔹 Fetch enrollment for the given semester and academic year
+    // Fetch fresh data
     const [rows] = await db.execute(
       `SELECT enrollment_id, enrollment_status
        FROM enrollments
@@ -191,23 +124,16 @@ exports.getEnrollmentStatus = async (req, res) => {
       step = rows[0].enrollment_status;
       enrollment_id = rows[0].enrollment_id;
     } else {
-      // Optional: mark student as not enrolled for this semester
-      await db.execute(
-        `UPDATE students SET is_enrolled = 0 WHERE student_id = ?`,
-        [student_id]
-      );
+      await db.execute(`UPDATE students SET is_enrolled = 0 WHERE student_id = ?`, [student_id]);
     }
 
-    // 🔹 Save to cache
-    enrollmentStatusCache.data[cacheKey] = {
-      step,
-      enrollment_id,
-      timestamp: now
-    };
+    const result = { step, enrollment_id, timestamp: now };
+    enrollmentStatusCache.data[cacheKey] = result;
 
-    res.json({ step, enrollment_id });
+    res.json(result);
+
   } catch (err) {
-    console.error("[EnrollStatus] Error fetching enrollment by semester:", err);
+    console.error("[EnrollStatus] Error fetching enrollment:", err);
     res.status(500).json({ error: "Failed to fetch enrollment status" });
   }
 };

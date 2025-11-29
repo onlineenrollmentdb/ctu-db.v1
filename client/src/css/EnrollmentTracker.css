@@ -137,6 +137,7 @@
 }
 
 .skip-step{
+  font-size: 0.7rem;
   margin-top: 1.5rem;
 }
 .note{
@@ -220,6 +221,7 @@
 }
 
 @media (max-width: 400px){
+  .skip-step{margin-top: 1rem; font-size: 0.5rem;}
   .details span{margin-bottom: 0.5rem;}
   .details i {font-size: 0.5rem;}
   .dividerStyle{margin: 0.5rem 0;}

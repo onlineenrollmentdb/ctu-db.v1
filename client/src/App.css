@@ -518,6 +518,7 @@ Responsive Layouts
 }
 
 @media (max-width: 500px) {
+  h4{font-size: 1.2rem;}
   .btn{
     font-size: 0.6rem;
   }

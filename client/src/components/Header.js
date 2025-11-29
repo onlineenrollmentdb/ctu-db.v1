@@ -35,16 +35,23 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
       .trim();
   }, [student]);
 
+  // Fetch notifications once
   const fetchNotifications = useCallback(async () => {
     if (!student) return;
     try {
       const res = await API.get(`/notifications/student/${student.student_id}`);
       setNotifications(res.data || []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch notifications:", err);
     }
   }, [student]);
 
+  // Only fetch notifications on mount
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  // Dropdown toggle
   const toggleDropdown = useCallback(async () => {
     const next = !showDropdown;
     setShowDropdown(next);
@@ -52,7 +59,7 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
     if (!student) return;
 
     if (next) {
-      await fetchNotifications();
+      // Only mark unseen notifications as seen when dropdown opens
       const unseen = notifications.filter((n) => !n.is_seen);
       unseen.forEach(async (n) => {
         try {
@@ -60,18 +67,9 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
         } catch (err) {}
       });
     }
-  }, [showDropdown, fetchNotifications, notifications, student]);
+  }, [showDropdown, notifications, student]);
 
-  useEffect(() => {
-    if (!student) return;
-    fetchNotifications();
-    const interval = setInterval(() => {
-      fetchNotifications();
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, [student, fetchNotifications]);
-
+  // Announcement logic
   useEffect(() => {
     if (!settings) return;
 
@@ -110,6 +108,7 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
     setAnnouncement(data);
   }, [settings]);
 
+  // Close dropdowns / modals on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
@@ -218,32 +217,33 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
           )}
         </div>
       </div>
-        {/* Announcement */}
-        {announcement && (
-          <div className="announcement">
-            <i className="bi bi-megaphone ann-icon"></i>
-            <span style={{ color: announcement.color }}>{announcement.message}</span>
-            <button className="view-date-btn" onClick={() => setShowAnnouncementModal(true)}>View Dates</button>
-          </div>
-        )}
 
-        {/* Announcement Modal */}
-        {showAnnouncementModal && announcement && (
-          <div className="modal-overlay">
-            <div className="modal-content" style={{ maxWidth: "400px" }} ref={modalRef}>
-              <h5>{announcement.type} Semester Enrollment</h5>
-              <p>Enrollment Starts: <span style={{ color: "var(--primary-color)" }}>{announcement.enrollStart.toLocaleDateString()}</span></p>
-              <p>Enrollment Ends: <span style={{ color: "var(--primary-color)" }}>{announcement.enrollEnd.toLocaleDateString()}</span></p>
-            </div>
-          </div>
-        )}
+      {/* Announcement */}
+      {announcement && (
+        <div className="announcement">
+          <i className="bi bi-megaphone ann-icon"></i>
+          <span style={{ color: announcement.color }}>{announcement.message}</span>
+          <button className="view-date-btn" onClick={() => setShowAnnouncementModal(true)}>View Dates</button>
+        </div>
+      )}
 
-        {/* Academic Year / Semester */}
-        {settings && (
-          <div className="academic-info">
-            Academic Year: {settings.current_academic_year} | Semester: {settings.current_semester}
+      {/* Announcement Modal */}
+      {showAnnouncementModal && announcement && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: "400px" }} ref={modalRef}>
+            <h5>{announcement.type} Semester Enrollment</h5>
+            <p>Enrollment Starts: <span style={{ color: "var(--primary-color)" }}>{announcement.enrollStart.toLocaleDateString()}</span></p>
+            <p>Enrollment Ends: <span style={{ color: "var(--primary-color)" }}>{announcement.enrollEnd.toLocaleDateString()}</span></p>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Academic Year / Semester */}
+      {settings && (
+        <div className="academic-info">
+          Academic Year: {settings.current_academic_year} | Semester: {settings.current_semester}
+        </div>
+      )}
     </header>
   );
 };
