@@ -14,7 +14,6 @@
 .homepage-content {
   z-index: 2;
   width: 100%;
-  max-width: 900px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
   display: flex;
@@ -56,11 +55,6 @@
   overflow: visible !important;
 }
 
-.status-text{
-  text-align: center;
-  color: var(--white);
-}
-
 /* -----------------------
    MOBILE
 ------------------------*/
@@ -77,6 +71,5 @@
 
   .status-card {
     padding: 1.5rem 1.2rem;
-    width: 70vw;
   }
 }

@@ -2,7 +2,7 @@ const db = require("../db");
 const { sendNotification } = require("../helpers/notificationHelper");
 const settingsController = require("./settingsController");
 
-// Enrollment status cache (5 minutes)
+// Enrollment status cache
 let enrollmentStatusCache = {
   data: {},
   ttl: 1 * 60 * 1000,
@@ -172,7 +172,8 @@ exports.getEnrollmentStatus = async (req, res) => {
       enrollmentStatusCache.data[cacheKey] &&
       now - enrollmentStatusCache.data[cacheKey].timestamp < enrollmentStatusCache.ttl
     ) {
-      return res.json({ step: enrollmentStatusCache.data[cacheKey].step });
+      const cached = enrollmentStatusCache.data[cacheKey];
+      return res.json({ step: cached.step, enrollment_id: cached.enrollment_id || null });
     }
 
     // 🔹 Fetch enrollment for the given semester and academic year
@@ -184,9 +185,11 @@ exports.getEnrollmentStatus = async (req, res) => {
     );
 
     let step = 0;
+    let enrollment_id = null;
 
     if (rows.length > 0) {
       step = rows[0].enrollment_status;
+      enrollment_id = rows[0].enrollment_id;
     } else {
       // Optional: mark student as not enrolled for this semester
       await db.execute(
@@ -198,10 +201,11 @@ exports.getEnrollmentStatus = async (req, res) => {
     // 🔹 Save to cache
     enrollmentStatusCache.data[cacheKey] = {
       step,
+      enrollment_id,
       timestamp: now
     };
 
-    res.json({ step });
+    res.json({ step, enrollment_id });
   } catch (err) {
     console.error("[EnrollStatus] Error fetching enrollment by semester:", err);
     res.status(500).json({ error: "Failed to fetch enrollment status" });

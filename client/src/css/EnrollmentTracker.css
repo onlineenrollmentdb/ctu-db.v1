@@ -1,186 +1,312 @@
-/* ---------------------------------------
-   MODERN ENROLLMENT TRACKER DESIGN
---------------------------------------- */
-
 :root {
-  --circle-size: 90px;
-  --circle-bg: linear-gradient(145deg, #ffffff, #f3f3f3);
+  --circle-size: 60px;
+  --circle-bg: #f3f3f3;
   --circle-shadow: 4px 4px 10px rgba(0,0,0,0.15), -4px -4px 10px rgba(255,255,255,0.9);
-  --completed-bg: linear-gradient(145deg, #d7ffd7, #bff0bf);
-  --completed-shadow: 0 0 18px rgba(76,175,80,0.35);
-  --active-bg: linear-gradient(145deg, #c7bdfc, #93a0ec);
-  --connector-bg: rgba(0,0,0,0.15);
-  --connector-done: linear-gradient(90deg, #4caf50, #81c784);
-  --dropdown-bg: rgba(255,255,255,0.85);
-  --label-color: #fff;
+  --completed-bg: #bff0bf;
+  --active-bg: #93a0ec;
+  --connector-bg: #ccc;
+  --connector-done: #4caf50;
+  --bubble-bg: #fff;
 }
 
 /* Tracker container */
-.horizontal-tracker {
+.tracker-container {
   display: flex;
-  justify-content: space-evenly;
-  align-items: center;
-  width: 100%;
-  padding-top: 2rem;
-  gap: 3rem;
-  box-sizing: border-box;
-  user-select: none;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 2rem;
+  flex-wrap: wrap;
 }
 
-/* Step container */
-.step {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transition: transform 0.25s ease;
-}
-
-/* Label */
-.step-label {
-  color: var(--label-color);
-  margin-top: 0.75rem;
-  font-weight: 600;
-  text-align: center;
-  z-index: 3;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-}
-
-/* Icon Circle */
+/* Circle */
 .circle {
   width: var(--circle-size);
   height: var(--circle-size);
-  background: var(--circle-bg);
   border-radius: 50%;
+  background: var(--circle-bg);
+  box-shadow: var(--circle-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--circle-shadow);
+  transition: all 0.4s ease;
   cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 3;
-}
-
-.circle:hover {
-  transform: translateY(-5px) scale(1.08);
-  box-shadow: 6px 6px 12px rgba(0,0,0,0.2), -6px -6px 12px rgba(255,255,255,0.95);
 }
 
 .circle img {
   width: 55%;
   height: 55%;
-  object-fit: contain;
 }
 
-/* Completed circle */
+.circle.completed,
+.circle.active {
+  opacity: 1;
+  transition: background 0.4s, box-shadow 0.8s, opacity 0.4s;
+}
+
+
 .circle.completed {
   background: var(--completed-bg);
-  box-shadow: var(--completed-shadow);
+  box-shadow: 0 0 20px rgba(76,175,80,0.4);
 }
 
-/* Active circle */
 .circle.active {
   background: var(--active-bg);
-  animation: activePulse 1.8s ease-in-out infinite;
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
-@keyframes activePulse {
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.12); }
-}
-
-/* Dropdown Box */
-.step-dropdown {
-  position: absolute;
-  top: calc(var(--circle-size) + 20px);
-  left: 50%;
-  transform: translateX(-50%) scale(0.85);
-  opacity: 0;
-  pointer-events: none;
-  width: 240px;
-  padding: 14px 18px;
-  background: var(--dropdown-bg);
-  backdrop-filter: blur(12px);
-  border-radius: 14px;
-  border: 1px solid rgba(0,0,0,0.1);
-  box-shadow: 0 12px 25px rgba(0,0,0,0.15);
-  transition: all 0.25s ease;
-}
-
-.step-dropdown.open {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(-50%) scale(1);
-  z-index: 2;
-}
-
-.step-link {
-  margin-top: 10px;
-  font-weight: 600;
-  text-decoration: underline;
-  color: var(--primary-color);
-  transition: color 0.25s ease;
-}
-
-.step-link:hover {
-  color: #388e3c;
-}
-
-/* Connector */
+/* Horizontal connector */
 .connector {
   position: absolute;
-  top: 45px;
-  right: -90px;
-  width: 90px;
+  top: 10%;
+  left: 50%;
+  transform: translateY(-50%);
   height: 4px;
+  width: 100%;
   background: var(--connector-bg);
-  border-radius: 4px;
-  z-index: 1;
-  transition: background 0.3s ease;
+  z-index: -2;
+  overflow: hidden;
 }
 
-.connector.done {
+.connector::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 0%;
   background: var(--connector-done);
+  transition: width 0.7s ease-in-out;
 }
 
-.step:last-child .connector {
-  display: none;
+.connector.done::after {
+  width: 100%;
 }
 
-/* Mobile View */
+/* Step container */
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Step text */
+.step-text {
+  background-color: var(--white);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: justify;
+  max-width: 250px;
+  min-height: 250px;
+  opacity: 0.5; /* inactive steps semi-transparent */
+  transition: opacity 0.5s ease-in-out, border-color 0.4s, box-shadow 0.4s;
+
+}
+
+.step-text.active-text {
+  opacity: 1; /* ensure visible */
+  border-color: var(--active-bg);
+  box-shadow: 0 0 12px rgba(147,160,236,0.4);
+  transition: fade-in;
+}
+
+.step-label {
+  font-weight: 600;
+  font-size: 1.5rem;
+}
+
+
+.details {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.3;
+}
+.details span{
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+.details i{
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+.skip-step{
+  margin-top: 1.5rem;
+}
+.note{
+  font-size: 9px;
+  color: gray;
+}
+
+.dividerStyle{
+  background-color : #868686;
+  margin: 10px 0;
+  height: 1px;
+  width : 100%;
+}
+
+.clearance-link {
+  background: none;
+  border: none;
+  color: #1976d2;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.clearance-link:hover {
+  color: #004ba0;
+}
+
 @media (max-width: 600px) {
-  .horizontal-tracker {
+  .tracker-container {
     flex-direction: column;
-    gap: 3rem;
+    gap: 2rem;
+    margin-top: 1rem;
+    padding: 0;
+  }
+
+  .step {
+    flex-direction: row;
+    align-items: flex-start;
+    width: 100%;
+    min-height: 200px;
   }
 
   .circle {
-    width: 100px;
-    height: 100px;
+    width: 60px;
+    height: 60px;
   }
 
   .connector {
-    position: absolute;
-    top: 100px;
-    left: 50%;
-    transform: translateX(-50%);
     width: 4px;
-    height: 200px;
+    height: 180px;
+    left: 28px;
+    top: 150px;
+    background: var(--connector-bg);
   }
 
-  .connector.done {
-    background: linear-gradient(#4caf50, #81c784);
+ /* Vertical fill animation */
+  .connector::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 0%;
+    background: var(--connector-done);
+    transition: height 0.7s ease-in-out;
   }
 
-  .step-dropdown {
-    position: relative;
-    top: 10px;
-    left: 0;
-    transform: scale(0.85);
+  .connector.done::after {
+    height: 100%;
   }
 
-  .step-dropdown.open {
-    transform: scale(1);
+  .step-text {
+    align-items: flex-start;
+    margin-left: 1rem;
+    max-width: none;
+    min-height: 200px;
+    width: 100%;
   }
+
+  .step-label { font-size: 0.9rem; }
+  .details, .clearance-link { font-size: 0.6rem; }
+}
+
+@media (max-width: 400px){
+  .details span{margin-bottom: 0.5rem;}
+  .details i {font-size: 0.5rem;}
+  .dividerStyle{margin: 0.5rem 0;}
+}
+
+/* Animations */
+@keyframes pulse {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.pop-anim {
+  animation: popIn 0.6s ease forwards;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.0); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 0.8s ease forwards;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+
+/* Confetti container */
+.confetti-container {
+  position: absolute;
+  top: -30px;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* so clicks pass through */
+  overflow: visible;
+}
+
+/* Confetti pieces */
+.confetti {
+  position: absolute;
+  width: 6px;
+  height: 12px;
+  background-color: var(--active-bg);
+  opacity: 0.8;
+  top: 50%;
+  left: 50%;
+  border-radius: 2px;
+  transform: translate(-50%, -50%) rotate(0deg);
+  animation: confettiFall linear infinite;
+}
+
+/* Generate random delay, rotation, and horizontal movement */
+.confetti:nth-child(odd) {
+  background-color: #f44336; /* red */
+}
+.confetti:nth-child(even) {
+  background-color: #ffeb3b; /* yellow */
+}
+
+.confetti:nth-child(3n) {
+  background-color: #4caf50; /* green */
+}
+
+.confetti:nth-child(4n) {
+  background-color: #2196f3; /* blue */
+}
+
+/* Confetti animation */
+@keyframes confettiFall {
+  0% {
+    transform: translateX(calc(-50% + var(--randX))) translateY(-50%) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(-50% + var(--randX))) translateY(200px) rotate(var(--randRot));
+    opacity: 0;
+  }
+}
+
+/* Assign random properties using inline style via CSS variables */
+.confetti {
+  --randX: calc((random(100) - 50) * 1px); /* horizontal spread */
+  --randRot: calc((random(360) * 1deg));  /* rotation */
+  animation-duration: calc(1.5s + random(2s)); /* speed randomization */
 }

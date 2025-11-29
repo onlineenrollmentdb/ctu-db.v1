@@ -6,6 +6,7 @@ import { connectSocket } from "../socket";
 import EnrollmentTracker from "../components/EnrollmentTracker";
 import "../css/HomePage.css";
 import "../css/EnrollmentTracker.css";
+import { useToast } from "../context/ToastContext";
 
 const HomePage = () => {
   const { user: student, loading } = useAuth();
@@ -13,6 +14,7 @@ const HomePage = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState(null);
+  const {addToast} = useToast();
 
   // Redirect if not logged in
   useEffect(() => {
@@ -75,13 +77,15 @@ const HomePage = () => {
         </h1>
 
         <div className="status-card">
-          <h4 className="status-text">ENROLLMENT STATUS</h4>
+          <h4>ENROLLMENT STATUS</h4>
 
           <EnrollmentTracker
             student={student}
             currentStep={currentStep}
             enrollmentStatus={student.enrollment_status}
             onStepClick={handleStepClick}
+            settings={settings}
+            addToast={addToast}
           />
 
           {isLoading && (

@@ -13,9 +13,7 @@ const EnrollForm = ({
   addToast,
   settings,
 }) => {
-  const [message, setMessage] = useState("");
-  const [showPopup, setShowPopup] = useState(false);
-  const [isError, setIsError] = useState(false);
+
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [isEnrollmentOpen, setIsEnrollmentOpen] = useState(false);
 
@@ -95,11 +93,7 @@ const EnrollForm = ({
   const handleEnroll = async () => {
     if (overloadStatus === "exceeded") {
       const msg = "❌ Unit load exceeds 27 units. Remove some subjects before enrolling.";
-      setIsError(true);
-      setMessage(msg);
-      setShowPopup(true);
       addToast?.(msg, "error");
-      setTimeout(() => setShowPopup(false), 3000);
       return;
     }
 
@@ -112,21 +106,14 @@ const EnrollForm = ({
       });
 
       const responseMessage = res.data?.message || "Enrollment submitted! Await verification.";
-      setMessage(responseMessage);
       addToast?.(responseMessage, "success");
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
 
       // Update status locally
       setEnrollmentStatus(2);
       if (onLockSubjects) onLockSubjects(true);
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message || "Something went wrong.";
-      setIsError(true);
-      setMessage(errorMsg);
       addToast?.(errorMsg, "error");
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
     }
   };
 
@@ -170,7 +157,7 @@ const EnrollForm = ({
       <div className="total-units">
         <span style={{
           color: overloadStatus === "exceeded" ? "red" :
-                 overloadStatus === "overload" ? "orange" : "green",
+                  overloadStatus === "overload" ? "orange" : "green",
           fontWeight: 500
         }}>
           Total Units: {totalUnits}
@@ -178,13 +165,6 @@ const EnrollForm = ({
           {overloadStatus === "exceeded" && " ❌ Overload Limit Exceeded"}
         </span>
       </div>
-
-      {/* Popup */}
-      {showPopup && (
-        <div className={`popup ${isError ? "error" : "success"}`}>
-          {message}
-        </div>
-      )}
     </div>
   );
 };

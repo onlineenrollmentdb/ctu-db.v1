@@ -37,7 +37,8 @@
   flex-basis: 23%;
   margin-left: 2%;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.2rem;
+  text-align: center;
 }
 
 /* Status colors */
@@ -145,10 +146,14 @@
 }
 
 
-@media (max-width: 600px) {
+@media (max-width: 800px) {
   .enrollment-grid{padding: 2rem 0 ;}
 	.enrollment-title { font-size: 1.3rem; text-align: center; }
   .enrollment-subjects { padding: 2rem 0.5rem 0; }
   .enrollment-form { padding: 0.5rem; }
 	.modern-table h4 { padding-left: 0.4rem; }
+  .total-units{font-size: 0.9rem;}
+}
+@media (max-width: 500px){
+  .total-units{font-size: 0.5rem;}
 }

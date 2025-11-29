@@ -375,7 +375,7 @@ Modern Tables
   width: 100%;
   border-collapse: collapse;
   background: #fff;
-  border-radius: 12px;
+  padding: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
   font-size: 0.9rem;
   max-height: 450px;
@@ -518,30 +518,15 @@ Responsive Layouts
 }
 
 @media (max-width: 500px) {
+  .btn{
+    font-size: 0.6rem;
+  }
+  .modern-table{
+    padding: 0;
+  }
   .modern-table td,
   .modern-table th {
-    font-size: 0.5rem;
-    padding: 0.2rem 0.3rem;
-  }
-
-  .group-cell {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.3rem;
-  }
-
-  .info-popup {
-    width: 160px;
-    font-size: 0.75rem;
-    left: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-	.info-popup-title { font-size: 0.5rem; }
-}
-@media (max-width: 370px) {
-  .modern-table td,
-  .modern-table th {
-    font-size: 0.4rem;
+    font-size: 6px;
     padding: 0.1rem 0.2rem;
   }
 
@@ -552,8 +537,13 @@ Responsive Layouts
 
   .info-popup {
     width: 100px;
-    font-size: 0.4rem;
+    font-size: 0.5rem;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
   }
+	.info-popup-title { font-size: 0.5rem; }
+
   .checkbox input[type="checkbox"], .checkbox svg {
     height: 10px;
   }

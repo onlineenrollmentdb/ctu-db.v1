@@ -100,12 +100,12 @@
 
 .nav-btn:hover {
   background: #d6eaff;
-  color: #2563eb;
+  color: var(--primary-color);
 }
 
 .nav-btn.active {
   background: #e8f3ff;
-  color: #2563eb;
+  color: var(--secondary-color);
 }
 
 /* =========================

@@ -67,10 +67,10 @@ exports.updateClearance = async (req, res) => {
 
         // 🔄 notify all clients via Socket.IO
         const io = req.app.get("io");
-        io.emit("clearanceUpdated", {
+        io.to(`student_${student_id}`).emit("enrollment-status-updated", {
             enrollment_id: enrollmentId,
             student_id,
-            enrollment_status: newStatus,
+            status: newStatus,
         });
 
         res.json({

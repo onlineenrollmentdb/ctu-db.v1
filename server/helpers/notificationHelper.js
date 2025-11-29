@@ -30,16 +30,6 @@ exports.sendNotification = async ({
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW())`,
         [user_type, user_id, title, message, type, link, sender_id, sender_type]
     );
-
-    // Optional: send email
-    if (email) {
-        await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
-            to: email,
-            subject: title,
-            text: message,
-        });
-    }
 };
 
 // 🔹 Delete notification by ID

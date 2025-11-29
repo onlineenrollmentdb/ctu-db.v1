@@ -63,6 +63,16 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
   }, [showDropdown, fetchNotifications, notifications, student]);
 
   useEffect(() => {
+    if (!student) return;
+    fetchNotifications();
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [student, fetchNotifications]);
+
+  useEffect(() => {
     if (!settings) return;
 
     const now = new Date();
@@ -179,7 +189,17 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
 
         {/* Profile */}
         <div className="profile" ref={profileRef} onClick={() => setShowProfileDropdown(prev => !prev)}>
-          <img src={profilePicture} alt="Profile" className="avatar-img" loading="lazy" />
+          {student.profile_picture ? (
+            <img
+              src={profilePicture}
+              alt="Profile"
+              className="avatar-img"
+              loading="lazy"
+            />
+          ) : (
+            <i className="bi bi-person-circle avatar-icon"></i>
+          )}
+
           <p className="hide-on-mobile">{fullName}</p>
 
           {showProfileDropdown && (
