@@ -17,7 +17,7 @@ router.get("/students/approved", adminController.getApprovedStudents);
 router.get("/students/pending", adminController.getPendingStudents);
 router.get("/students/:student_id/subjects", adminController.getStudentSubjects);
 router.post("/students", adminController.addStudent); // ADD student
-router.put("/students/:student_id", adminController.updateStudent); // UPDATE student
+router.put("/students/:student_id", adminController.updateStudent);
 router.delete("/students/:student_id", adminController.deleteStudent);
 
 // --------------------

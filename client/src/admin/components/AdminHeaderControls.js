@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import { CustomSelect } from "../../components/customSelect";
 import "../css/header.css";
 
-/* ============================= */
-/* 🔹 Admin Header Controls */
-/* ============================= */
 export const AdminHeaderControls = ({
   searchQuery,
   setSearchQuery,
@@ -31,7 +29,6 @@ export const AdminHeaderControls = ({
   const getSafeFullName = (s) =>
     `${s.first_name || ""} ${s.middle_name || ""} ${s.last_name || ""}`.trim();
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
@@ -42,7 +39,6 @@ export const AdminHeaderControls = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Open dropdown for records tab
   useEffect(() => {
     if (tab === "records" && filteredStudents.length > 0) {
       setIsDropdownOpen(true);
@@ -90,76 +86,79 @@ export const AdminHeaderControls = ({
 
   return (
     <div className="admin-header-controls">
-      {tab === "settings" ? (
-        <div className="settings-info">
-          <h2>Academic Settings</h2>
-          <p><strong>Semester:</strong> {settings?.current_semester || "N/A"}</p>
-          <p><strong>School Year:</strong> {settings?.current_academic_year || "N/A"}</p>
+      {/* Academic Year & Semester */}
+      <div className="semester-year">
+        <span>
+          <strong>Academic Year:</strong> {settings?.current_academic_year || "N/A"} |
+          <strong> Semester:</strong> {settings?.current_semester || "N/A"}
+          </span>
+      </div>
+
+      {/* Search Bar */}
+      <div className="search-bar-wrapper" ref={wrapperRef}>
+        <div className="search-bar">
+          <i className="bi bi-search search-icon"></i>
+          <input
+            type="text"
+            placeholder={tab === "records" ? "Search by ID or Name" : "Search by ID, Name, or Subject"}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
         </div>
-      ) : (
-        <>
-          <div className="search-bar-wrapper" ref={wrapperRef}>
-            <div className="search-bar">
-              <i className="bi bi-search search-icon"></i>
-              <input
-                type="text"
-                placeholder={tab === "records" ? "Search by ID or Name" : "Search by ID, Name, or Subject"}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-              />
-            </div>
 
-            {tab === "records" && isDropdownOpen && (
-              <ul className="search-dropdown-overlay">
-                {filteredStudents
-                  .filter((s, index, self) => index === self.findIndex((stu) => stu.student_id === s.student_id))
-                  .map((s, idx) => {
-                    const fullName = getSafeFullName(s);
-                    return (
-                      <li
-                        key={s.student_id}
-                        className={highlightIndex === idx ? "highlighted" : ""}
-                        onClick={() => {
-                          handleSelectStudent({ ...s, full_name: fullName });
-                          setSearchQuery(fullName);
-                          setIsDropdownOpen(false);
-                        }}
-                        onMouseEnter={() => setHighlightIndex(idx)}
-                      >
-                        {s.student_id} - {fullName}
-                      </li>
-                    );
-                  })}
-              </ul>
-            )}
-          </div>
+        {tab === "records" && isDropdownOpen && (
+          <ul className="search-dropdown-overlay">
+            {filteredStudents
+              .filter((s, index, self) => index === self.findIndex((stu) => stu.student_id === s.student_id))
+              .map((s, idx) => {
+                const fullName = getSafeFullName(s);
+                return (
+                  <li
+                    key={s.student_id}
+                    className={highlightIndex === idx ? "highlighted" : ""}
+                    onClick={() => {
+                      handleSelectStudent({ ...s, full_name: fullName });
+                      setSearchQuery(fullName);
+                      setIsDropdownOpen(false);
+                    }}
+                    onMouseEnter={() => setHighlightIndex(idx)}
+                  >
+                    {s.student_id} - {fullName}
+                  </li>
+                );
+              })}
+          </ul>
+        )}
+      </div>
 
-          {showDepartmentFilter && (
-            <select value={departmentFilter || ""} onChange={(e) => setDepartmentFilter(e.target.value)}>
-              <option value="">All Departments</option>
-              {departments.map((d) => <option key={d.department_id} value={d.department_id}>{d.department_code}</option>)}
-            </select>
-          )}
-
-          {showProgramFilter && (
-            <select value={programFilter || ""} onChange={(e) => setProgramFilter(e.target.value ? Number(e.target.value) : "")}>
-              <option value="">All Programs</option>
-              {programs.map((p) => <option key={p.program_id} value={p.program_id}>{p.program_code}</option>)}
-            </select>
-          )}
-
-          {showYearFilter && (
-            <select value={filterYear || ""} onChange={handleYearChange}>
-              <option value="">All Years</option>
-              {[1,2,3,4].map(y => <option key={y} value={y}>{y}{"st"} Year</option>)}
-            </select>
-          )}
-
-          <p><strong>Semester:</strong> {settings?.current_semester || "N/A"}</p>
-          <p><strong>School Year:</strong> {settings?.current_academic_year || "N/A"}</p>
-        </>
-      )}
+      {/* Filters */}
+      <div className="filters-wrapper">
+        {showDepartmentFilter && (
+          <CustomSelect
+            options={[{ value: "", label: "All Departments" }, ...departments.map(d => ({ value: d.department_id, label: d.department_code }))]}
+            value={departmentFilter || ""}
+            onChange={(val) => setDepartmentFilter(val)}
+            placeholder="All Departments"
+          />
+        )}
+        {showProgramFilter && (
+          <CustomSelect
+            options={[{ value: "", label: "All Programs" }, ...programs.map(p => ({ value: p.program_id, label: p.program_code }))]}
+            value={programFilter || ""}
+            onChange={(val) => setProgramFilter(val ? Number(val) : "")}
+            placeholder="All Programs"
+          />
+        )}
+        {showYearFilter && (
+          <CustomSelect
+            options={[{ value: "", label: "All Years" }, ...[1, 2, 3, 4].map(y => ({ value: y, label: `${y}st Year` }))]}
+            value={filterYear || ""}
+            onChange={handleYearChange}
+            placeholder="All Years"
+          />
+        )}
+      </div>
     </div>
   );
 };

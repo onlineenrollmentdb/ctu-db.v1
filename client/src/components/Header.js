@@ -30,10 +30,14 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
 
   const fullName = useMemo(() => {
     if (!student) return "";
-    return `${student.first_name || ""} ${student.middle_name || ""} ${student.last_name || ""}`
-      .replace(/\s+/g, " ")
-      .trim();
+
+    const first = student.first_name || "";
+    const middle = student.middle_name ? `${student.middle_name.charAt(0)}.` : "";
+    const last = student.last_name || "";
+
+    return `${first} ${middle} ${last}`.replace(/\s+/g, " ").trim();
   }, [student]);
+
 
   // Fetch notifications once
   const fetchNotifications = useCallback(async () => {
@@ -188,17 +192,13 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
 
         {/* Profile */}
         <div className="profile" ref={profileRef} onClick={() => setShowProfileDropdown(prev => !prev)}>
-          {student.profile_picture ? (
-            <img
-              src={profilePicture}
-              alt="Profile"
-              className="avatar-img"
-              loading="lazy"
-            />
-          ) : (
-            <i className="bi bi-person-circle avatar-icon"></i>
-          )}
-
+          <img
+            src={profilePicture}
+            alt="Profile"
+            className="avatar-img"
+            loading="lazy"
+            onError={(e) => { e.target.src = defaultUser; }}
+          />
           <p className="hide-on-mobile">{fullName}</p>
 
           {showProfileDropdown && (

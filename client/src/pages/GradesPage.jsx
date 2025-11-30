@@ -61,14 +61,6 @@ export default function GradesPage() {
   const passed = subjects.filter((s) => s.status === "Passed").length;
   const failed = subjects.filter((s) => s.status === "Failed").length;
 
-  // 🔹 Calculate total units per year
-  const unitsPerYear = subjects.reduce((acc, subj) => {
-    const year = subj.year_level || "Unknown";
-    if (!acc[year]) acc[year] = 0;
-    acc[year] += parseFloat(subj.units) || 0;
-    return acc;
-  }, {});
-
   // 📈 Average per year + semester
   const semesterMap = {};
   gradedSubjects.forEach((s) => {
@@ -142,13 +134,6 @@ export default function GradesPage() {
             <div className="grades-card failed">
               Failed <p>{failed || "—"}</p>
             </div>
-
-            {/* Total units per year */}
-            {Object.entries(unitsPerYear).map(([year, units]) => (
-              <div key={year} className="grades-card units">
-                {year} Year Units <p>{units}</p>
-              </div>
-            ))}
 
             {/* Graph bottom-left */}
             <div className="grades-card graph">

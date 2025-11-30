@@ -127,7 +127,7 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
         <div className="settings-actions" style={{ marginTop: "1rem" }}>
           <div>
             <button
-              className="btn btn-primary m-2"
+              className="btn btn-primary"
               onClick={() => {
                 if (editMode) setShowConfirmModal(true);
                 else setEditMode(true);
@@ -138,7 +138,7 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
 
             {editMode && (
               <button
-                className="btn btn-secondary m-2"
+                className="btn btn-cancel"
                 onClick={() => {
                   fetchSettings();
                   setEditMode(false);
@@ -151,7 +151,7 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
             {/* Shift Semester */}
             {editMode && (
               <button
-                className="btn btn-warning m-2"
+                className="btn btn-edit"
                 onClick={() => {
                   setPreviewSettings({ ...settings });
                   setShowShiftModal(true);

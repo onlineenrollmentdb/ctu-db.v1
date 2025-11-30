@@ -3,6 +3,7 @@ import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";
 import API from "../../api/api";
 import AdminHeaderControls from "../components/AdminHeaderControls";
+import { CustomSelect } from "../../components/customSelect";
 
 export default function StudentsTab({ settings, students, setStudents, fetchStudents, programs, fetchPrograms }) {
   const { addToast } = useToast();
@@ -29,6 +30,11 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 10;
+
+  // 🔹 Delete Modal States
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteStudent, setDeleteStudent] = useState(null);
+  const [deleteInputs, setDeleteInputs] = useState({ student_id: "", confirm_text: "" });
 
   useEffect(() => {
     const loadData = async () => {
@@ -62,6 +68,7 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
   const startIndex = (currentPage - 1) * studentsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, startIndex + studentsPerPage);
 
+  // ================= MODAL FUNCTIONS =================
   const openModal = (student = null) => {
     setEditingStudent(student);
     setForm(
@@ -116,12 +123,35 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
     }
   };
 
-  const handleDelete = async (student_id) => {
-    if (!window.confirm("Delete this student?")) return;
+  // ================= DELETE FUNCTIONS =================
+  const openDeleteModal = (student) => {
+    setDeleteStudent(student);
+    setDeleteInputs({ student_id: "", confirm_text: "" });
+    setDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteStudent(null);
+    setDeleteInputs({ student_id: "", confirm_text: "" });
+    setDeleteModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteStudent) return;
+
+    if (
+      deleteInputs.student_id !== deleteStudent.student_id.toString() ||
+      deleteInputs.confirm_text.toLowerCase() !== "delete"
+    ) {
+      addToast("Student ID or confirmation text is incorrect ❌", "error");
+      return;
+    }
+
     try {
-      await API.delete(`/students/${student_id}`);
+      await API.delete(`admin/students/${deleteStudent.student_id}`);
       addToast("Student deleted successfully 🗑️", "success");
       fetchStudents();
+      closeDeleteModal();
     } catch {
       addToast("Failed to delete student ❌", "error");
     }
@@ -130,7 +160,7 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
   if (userRole !== "admin") return <p className="access-denied">Access denied</p>;
 
   return (
-    <div className="students-wrapper">
+    <div>
       <AdminHeaderControls
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -141,14 +171,14 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
         tab="students"
       />
 
-      <div className="students-header">
+      <div className="students-header d-flex justify-content-between align-items-center">
         <h2>Students Management</h2>
         <button onClick={() => openModal()} className="btn btn-primary">
           + Add Student
         </button>
       </div>
 
-      <div className="student table-container">
+      <div className="modern-table-wrapper">
         {loading ? (
           <p className="loading-text">Loading...</p>
         ) : (
@@ -182,9 +212,21 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
                       3: "Enrolled",
                     }[s.enrollment_status] || "Not Active"}
                   </td>
-                  <td className="action-buttons">
-                    <button className="btn btn-primary" onClick={() => openModal(s)}>Edit</button>
-                    <button className="btn btn-delete" onClick={() => handleDelete(s.student_id)}>Delete</button>
+                  <td className="action-buttons d-flex gap-2 justify-content-center">
+                    {/* Edit Icon */}
+                    <i
+                      className="bi bi-pencil-square text-primary action-icon"
+                      title="Edit"
+                      onClick={() => openModal(s)}
+                      style={{ cursor: "pointer", fontSize: "1.2rem" }}
+                    ></i>
+                    {/* Delete Icon */}
+                    <i
+                      className="bi bi-trash text-danger action-icon"
+                      title="Delete"
+                      onClick={() => openDeleteModal(s)}
+                      style={{ cursor: "pointer", fontSize: "1.2rem" }}
+                    ></i>
                   </td>
                 </tr>
               ))}
@@ -194,19 +236,17 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
       </div>
 
       {/* Pagination */}
-      <div className="pagination">
+      <div className="pagination d-flex justify-content-center align-items-center gap-2 mt-3">
         <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
           &lt;
         </button>
-        <span>
-          {currentPage} / {totalPages || 1}
-        </span>
+        <span>{currentPage} / {totalPages || 1}</span>
         <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}>
           &gt;
         </button>
       </div>
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       {modalOpen && (
         <div className="modal-overlay">
           <div className="modal-box">
@@ -216,20 +256,64 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
               <input placeholder="First Name" value={form.first_name} onChange={(e) => handleChange("first_name", e.target.value)} />
               <input placeholder="Last Name" value={form.last_name} onChange={(e) => handleChange("last_name", e.target.value)} />
               <input placeholder="Middle Name" value={form.middle_name} onChange={(e) => handleChange("middle_name", e.target.value)} />
-              <input placeholder="Year Level" value={form.year_level} onChange={(e) => handleChange("year_level", e.target.value)} />
+              <CustomSelect
+                options={[
+                  { value: 1, label: "1st" },
+                  { value: 2, label: "2nd" },
+                  { value: 3, label: "3rd" },
+                  { value: 4, label: "4th" },
+                ]}
+                value={form.year_level}
+                onChange={(val) => handleChange("year_level", val)}
+                placeholder="Select Year Level"
+              />
+
               <input placeholder="Email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
-              <select value={form.program_id || ""} onChange={(e) => handleChange("program_id", Number(e.target.value))}>
-                <option value="">Select Program</option>
-                {programs.map((p) => <option key={p.program_id} value={p.program_id}>{p.program_code}</option>)}
-              </select>
-              <select value={form.student_status} onChange={(e) => handleChange("student_status", e.target.value)}>
-                <option value="Regular">Regular</option>
-                <option value="Irregular">Irregular</option>
-              </select>
+              <CustomSelect
+                options={programs.map((p) => ({ value: p.program_id, label: p.program_code }))}
+                value={form.program_id}
+                onChange={(val) => handleChange("program_id", val)}
+                placeholder="Select Program"
+              />
+              <CustomSelect
+                options={[
+                  { value: "Regular", label: "Regular" },
+                  { value: "Irregular", label: "Irregular" },
+                ]}
+                value={form.student_status}
+                onChange={(val) => handleChange("student_status", val)}
+                placeholder="Select Status"
+              />
             </div>
             <div className="modal-actions">
-              <button className="btn-cancel" onClick={closeModal}>Cancel</button>
-              <button className="btn-primary" onClick={handleSave}>{editingStudent ? "Update" : "Save"}</button>
+              <button className="btn btn-cancel" onClick={closeModal}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave}>{editingStudent ? "Update" : "Save"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && deleteStudent && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <h3>Delete Student</h3>
+            <p>
+              To confirm deletion, enter the <strong>Student ID</strong> and type <strong>DELETE</strong> below.
+            </p>
+            <input
+              placeholder="Student ID"
+              value={deleteInputs.student_id}
+              onChange={(e) => setDeleteInputs(prev => ({ ...prev, student_id: e.target.value }))}
+            />
+            <input
+              placeholder='Type "DELETE" to confirm'
+              value={deleteInputs.confirm_text}
+              onChange={(e) => setDeleteInputs(prev => ({ ...prev, confirm_text: e.target.value }))}
+            />
+            <div className="modal-actions">
+              <button className="btn btn-cancel" onClick={closeDeleteModal}>Cancel</button>
+              <button className="btn btn-delete" onClick={handleDeleteConfirm}>Delete</button>
             </div>
           </div>
         </div>

@@ -68,30 +68,6 @@
   cursor: pointer;
 }
 
-.btn-primary {
-  background-color: #007bff;
-  color: #ffffff;
-  border: none;
-}
-
-.btn-warning {
-  background-color: #ffc107;
-  color: #212529;
-  border: none;
-}
-
-.btn-success {
-  background-color: #28a745;
-  color: #ffffff;
-  border: none;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: #ffffff;
-  border: none;
-}
-
 /* DatePicker adjustments */
 .react-datepicker-wrapper {
   width: 100%;

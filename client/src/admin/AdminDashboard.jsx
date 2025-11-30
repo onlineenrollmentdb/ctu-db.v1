@@ -158,7 +158,7 @@ export default function AdminDashboard() {
   return (
     <div className="admin-dashboard">
       {/* Sidebar */}
-      <div className={`admin-sidebar ${isSidebarOpen ? "show" : ""}`}>
+      <div>
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -167,12 +167,15 @@ export default function AdminDashboard() {
           navigate={navigate}
           currentUser={user}
           userRole={userRole}
+          isSidebarOpen={isSidebarOpen}
         />
+        <button
+          className={`sidebar-toggle ${isSidebarOpen ? "sidebar-open" : ""}`}
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        >
+          {isSidebarOpen ? "✖" : "☰"}
+        </button>
       </div>
-      <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-        {isSidebarOpen ? "✖" : "☰"}
-      </button>
-
       {/* Main panel */}
       <div className="middle-panel">
         <Suspense fallback={<div>Loading Tab...</div>}>

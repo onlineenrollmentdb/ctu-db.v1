@@ -73,19 +73,6 @@ h3 {
 .admin-sidebar .logout-btn:hover {
   color: #fff;
 }
-.sidebar-toggle {
-  position: fixed;
-  top: 1rem;
-  left: 1rem;
-  z-index: 1100;
-  color: var(--secondary-color);
-  border: none;
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  font-size: 1.25rem;
-  cursor: pointer;
-  display: none;
-}
 
 /* ============================= */
 /* 🔹 Middle Panel */
@@ -560,10 +547,8 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
 @media (max-width: 900px) {
-  .admin-dashboard {
-    flex-direction: column;
-  }
   .admin-sidebar {
     position: fixed;
     top: 0;
@@ -571,18 +556,44 @@ h3 {
     bottom: 0;
     height: 100%;
     z-index: 1000;
-    transform: translateX(-100%);
+    transform: translateX(-100%); /* hidden by default */
+    transition: transform 0.3s ease-in-out;
   }
+
   .admin-sidebar.show {
-    transform: translateX(0);
+    transform: translateX(0); /* visible when toggled */
   }
-  .middle-panel {
-    padding: 1rem;
-  }
+
+  /* Sidebar toggle button */
   .sidebar-toggle {
     display: block;
+    position: fixed;
+    z-index: 1101;
+    padding: 0.5rem 0.75rem;
+    font-size: 1.25rem;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--bg-color, #fff);
+    cursor: pointer;
+    transition: transform 0.3s ease-in-out; /* animate button */
+  }
+
+  /* Move toggle button along with sidebar */
+  .sidebar-toggle.sidebar-open {
+    transform: translateX(190px); /* match sidebar width */
+  }
+
+  .middle-panel {
+    padding: 1rem;
+    transition: margin-left 0.3s ease-in-out;
+  }
+
+  /* Optional: push content slightly when sidebar opens */
+  .admin-sidebar.show ~ .middle-panel {
+    margin-left: 250px; /* match sidebar width */
   }
 }
+
 @media (max-width: 768px) {
   .sort-dropdown {
     right: auto;

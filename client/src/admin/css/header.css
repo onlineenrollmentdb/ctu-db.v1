@@ -1,42 +1,66 @@
-/* ============================= */
-/* 🔹 Header Controls */
-/* ============================= */
 .admin-header-controls {
     position: sticky;
     top: 0;
     z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 0.5rem 1rem;
     background: #fff;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #e5e7eb;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    align-items: center;
 }
 
-/* Search bar */
-.admin-header-controls .search-bar {
+/* Academic Year & Semester (top-left) */
+.semester-year {
+    grid-column: 1 / 4;
+    grid-row: 1 / 2;
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    font-size: 0.85rem;
+    color: #374151;
+}
+
+/* Search bar (middle) */
+.search-bar-wrapper {
+    grid-column: 1 / 3;
+    grid-row: 2 / 3;
+    position: relative;
+}
+.search-bar {
     display: flex;
     align-items: center;
     background: #f9fafb;
     padding: 0.4rem 0.75rem;
     border-radius: 1rem;
-    width: 40vw;
+    width: 100%;
 }
-.admin-header-controls .search-bar .search-icon {
+.search-bar .search-icon {
     margin-right: 0.5rem;
     color: #6b7280;
 }
-.admin-header-controls .search-bar input {
+.search-bar input {
     border: none;
     outline: none;
     flex: 1;
-    margin: 0;
     background: transparent;
 }
 
-/* filter */
-.admin-header-controls .filter select {
+/* Filters (top-right) */
+.filters-wrapper {
+    grid-column: 3 / 4;
+    grid-row: 2 / 3;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    padding: 0 1.5rem;
+    margin-left: 1rem;
+}
+.filters-wrapper select {
     padding: 0.4rem 0.75rem;
     border: 0;
     font-size: 0.9rem;
@@ -45,37 +69,16 @@
     outline: none;
 }
 
-/* Semester + Year Info */
-.admin-header-controls .semester-year {
-    display: flex;
-    flex-direction: column;
-    text-align: right;
-}
-.admin-header-controls .semester-year p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #374151;
-}
-
-.settings-title{
-  width: 50%;
-}
-
-/* Container for search + dropdown */
-.search-bar-wrapper {
-    position: relative;
-}
-
 /* Dropdown overlay */
 .search-dropdown-overlay {
     position: absolute;
-    top: 100%; /* right below input */
+    top: 100%;
     left: 0;
     width: 100%;
     max-height: 250px;
     overflow-y: auto;
-    background: rgba(255, 255, 255, 0.95); /* semi-transparent */
-    backdrop-filter: blur(5px); /* background blur */
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(5px);
     border: 1px solid #ccc;
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -83,7 +86,6 @@
     margin-top: 4px;
 }
 
-/* Dropdown items */
 .search-dropdown-overlay li {
     padding: 8px 12px;
     cursor: pointer;
@@ -92,8 +94,20 @@
 .search-dropdown-overlay li:hover {
     background-color: #f0f0f0;
 }
+
 .search-dropdown-overlay li.highlighted {
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-header-controls {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 0.5rem;
+    }
+    .filters-wrapper {
+        justify-content: flex-start;
+    }
 }

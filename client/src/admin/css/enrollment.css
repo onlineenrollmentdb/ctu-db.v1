@@ -118,55 +118,6 @@
   margin-top: 0.5rem;
 }
 
-
-/* ----------------------------
-   Buttons
----------------------------- */
-.btn {
-  padding: 0.4rem 0.8rem;
-  border: none;
-  cursor: pointer;
-  border-radius: 5px;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background-color: #0069d9;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: #fff;
-}
-
-.btn-secondary:hover {
-  background-color: #5a6268;
-}
-
-.btn-delete {
-  background-color: #dc3545;
-  color: #fff;
-}
-
-.btn-delete:hover {
-  background-color: #c82333;
-}
-
-.btn-success {
-  background-color: #28a745;
-  color: #fff;
-}
-
-.btn-success:hover {
-  background-color: #218838;
-}
-
 /* ----------------------------
    Export button bottom-right
 ---------------------------- */

@@ -130,7 +130,7 @@ export default function FacultyTab({ settings, faculty, setFaculty, fetchFaculty
 
       <div className="faculty-header">
         <h2>Faculty Management</h2>
-        <button onClick={() => openModal()} className="btn-primary">
+        <button onClick={() => openModal()} className="btn btn-primary">
           + Add Faculty
         </button>
       </div>
@@ -168,12 +168,21 @@ export default function FacultyTab({ settings, faculty, setFaculty, fetchFaculty
                       </span>
                     </td>
                     <td className="action-buttons">
-                      <button className="btn btn-edit mw2" onClick={() => openModal(f)}>
-                        Edit
-                      </button>
-                      <button className="btn btn-delete mw2" onClick={() => handleDelete(f.faculty_id)}>
-                        Delete
-                      </button>
+                      {/* Edit Icon */}
+                      <i
+                        className="bi bi-pencil-square action-icon"
+                        title="Edit"
+                        onClick={() => openModal(f)}
+                        style={{ cursor: "pointer", fontSize: "1.2rem" }}
+                      ></i>
+
+                      {/* Delete Icon */}
+                      <i
+                        className="bi bi-trash action-icon"
+                        title="Delete"
+                        onClick={() => handleDelete(f.faculty_id)}
+                        style={{ cursor: "pointer", fontSize: "1.2rem" }}
+                      ></i>
                     </td>
                   </tr>
                 );
