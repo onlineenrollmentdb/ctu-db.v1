@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLocation } from "react-router-dom";
 import API from "../api/api";
@@ -9,6 +10,7 @@ import "../css/Header.css";
 const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) => {
   const { user: student } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const dropdownRef = useRef(null);
   const profileRef = useRef(null);
@@ -38,6 +40,11 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
     return `${first} ${middle} ${last}`.replace(/\s+/g, " ").trim();
   }, [student]);
 
+    useEffect(() => {
+    if (!student) {
+      navigate("/login"); // redirect to login page
+    }
+  }, [student, navigate]);
 
   // Fetch notifications once
   const fetchNotifications = useCallback(async () => {

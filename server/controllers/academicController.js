@@ -26,23 +26,27 @@ exports.getAcademicHistory = async (req, res) => {
         s.lab_hours,
         s.year_level,
         s.program_id,
-        GROUP_CONCAT(
-          CASE
-            WHEN pr.year_standing_level IS NOT NULL THEN CONCAT(pr.year_standing_level, '_YEAR_STANDING')
-            ELSE sp.subject_code
-          END
-          ORDER BY pr.type, pr.prereq_subject_code
-          SEPARATOR ','
-        ) AS prerequisites
+        p.prerequisites
       FROM academic_history ah
       LEFT JOIN subjects s ON ah.subject_section = s.subject_section
-      LEFT JOIN prerequisites pr ON s.subject_code = pr.subject_code
-      LEFT JOIN subjects sp ON pr.prereq_subject_code = sp.subject_code
+      LEFT JOIN (
+        SELECT pr.subject_code,
+               GROUP_CONCAT(DISTINCT
+                 CASE
+                   WHEN pr.year_standing_level IS NOT NULL THEN CONCAT(pr.year_standing_level, '_YEAR_STANDING')
+                   ELSE sp.subject_code
+                 END
+                 ORDER BY pr.type, pr.prereq_subject_code
+                 SEPARATOR ','
+               ) AS prerequisites
+        FROM prerequisites pr
+        LEFT JOIN subjects sp ON pr.prereq_subject_code = sp.subject_code
+        GROUP BY pr.subject_code
+      ) p ON s.subject_code = p.subject_code
       WHERE ah.student_id = ?
-      GROUP BY ah.history_id
       ORDER BY s.year_level, ah.semester, s.subject_code
       `,
-      [studentId] 
+      [studentId]
     );
 
     const formatted = rows.map(row => ({
@@ -65,6 +69,7 @@ exports.getAcademicHistory = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch academic history" });
   }
 };
+
 
 
 // 🔹 Helper: Map total credits to year level
