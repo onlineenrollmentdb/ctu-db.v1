@@ -164,17 +164,17 @@ const EnrollmentTracker = ({ student, currentStep = 0, setCurrentStep, settings,
     {
       label: "Processing",
       details: (status) => {
-        if (status < 2) return "Enrollment will be available after completing the requirements";
+        if (status < 2) return "After enrollment your form will be reviewed by the ctu personnel's";
         return (
           <div>
             <span className="note">
-              <i className="bi bi-exclamation-circle-fill text-warning"></i> The enrollment process will be checked by the following personnel:
+              <i className="bi bi-exclamation-circle-fill text-warning"></i> The enrollment process will be checked by the following personnel's:
             </span>
             <span>
               <i className={`bi ${status > 0 ? "bi-check-circle-fill" : "bi-circle"}`}> Faculty Approval</i><br />
               <i className={`bi ${status > 0 ? "bi-check-circle-fill" : "bi-circle"}`}> Dean Approval</i>
             </span><br />
-            {status > 2 && <span>Your Enrollment Form has been confirmed!!</span>}
+            {status > 2 && <span className="mt2">Your Enrollment Form has been confirmed!!</span>}
             {status === 2 && (
               <span className="skip-step">
                 or click{" "}

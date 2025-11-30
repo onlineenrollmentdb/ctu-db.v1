@@ -57,6 +57,8 @@ body {
   justify-content: center;
   align-items: center;
 }
+.mt1{margin-top: 1rem;}
+.mt2{margin-top: 1.5rem;}
 
 /* Typography */
 h1 {
@@ -257,7 +259,6 @@ Layout
 .signup-text {
   font-size: 13px;
   margin: 16px 0;
-  text-align: left;
   color: var(--color-text-muted);
 }
 

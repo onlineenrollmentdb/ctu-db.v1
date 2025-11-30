@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useLocation } from "react-router-dom";
 import API from "../api/api";
 import logo from "../img/ctu_logo.webp";
-import defaultUser from "../img/default_user.webp";
+import defaultUser from "../img/user.webp";
 import "../css/Header.css";
 
 const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) => {

@@ -443,7 +443,7 @@
 @media (max-width: 500px) {
   .notification-dropdown {
     width: 80vw;
-    right: -50px;
+    right: -10px;
   }
   .academic-info{
     font-size: 0.6rem;
@@ -470,5 +470,19 @@
   }
   .view-date-btn {
     font-size: 0.5rem;
+  }
+  .profile-dropdown{
+    min-width: 200px;
+  }
+  .profile-dropdown p{
+    font-size: 0.6rem;
+  }
+  .profile-dropdown .logout-btn{
+    display: flex;
+    justify-content: right;
+  }
+  .logout-btn i{
+    font-size: 0.8rem;
+    margin: 0.2rem;
   }
 }
