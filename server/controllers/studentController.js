@@ -60,37 +60,7 @@ exports.getStudentById = async (req, res) => {
 // ====================================
 // 🔹 Get academic history
 // ====================================
-exports.getAcademicHistory = async (req, res) => {
-  const { student_id } = req.params;
 
-  try {
-    const [rows] = await db.execute(
-      `
-      SELECT
-        ah.history_id,
-        ah.subject_section,
-        ah.semester AS subject_semester,
-        ah.academic_year,
-        ah.grade,
-        ah.status,
-        s.subject_desc,
-        s.units,
-        s.year_level
-      FROM academic_history ah
-      LEFT JOIN subjects s
-        ON ah.subject_section = s.subject_section
-      WHERE ah.student_id = ?
-      ORDER BY s.year_level, ah.semester
-      `,
-      [student_id]
-    );
-
-    res.json(rows);
-  } catch (err) {
-    console.error("❌ Error fetching academic history:", err);
-    res.status(500).json({ error: "Failed to fetch academic history" });
-  }
-};
 
 // ====================================
 // 🔹 Update student info with duplicate handling

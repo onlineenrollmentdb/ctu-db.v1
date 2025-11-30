@@ -88,13 +88,19 @@ export default function AdminDashboard() {
     }
   }, [addToast]);
 
-  const fetchStudents = useCallback(async () => {
+  const fetchAllStudents = useCallback(async () => {
     try {
       const res = await API.get("admin/students", {
-        params: { academic_year: settings.current_academic_year, semester: settings.current_semester },
+        params: {
+          academic_year: settings.current_academic_year,
+          semester: settings.current_semester,
+        },
       });
-      setStudents(res.data);
-    } catch {
+
+      // Always return an array
+      setStudents(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Error fetching students:", err);
       addToast("Failed to fetch students ❌", "error");
     }
   }, [addToast, settings.current_academic_year, settings.current_semester]);
@@ -116,7 +122,7 @@ export default function AdminDashboard() {
       setLoading(true);
       try {
         await fetchSettings();
-        await Promise.allSettled([fetchPrograms(), fetchDepartments(), fetchSubjects(), fetchStudents(), fetchFaculty()]);
+        await Promise.allSettled([fetchPrograms(), fetchDepartments(), fetchSubjects(), fetchAllStudents(), fetchFaculty()]);
       } catch {
         addToast("Failed to fetch initial data ❌", "error");
       } finally {
@@ -125,7 +131,7 @@ export default function AdminDashboard() {
     };
 
     fetchAll();
-  }, [user, fetchSettings, fetchPrograms, fetchDepartments, fetchSubjects, fetchStudents, fetchFaculty, addToast]);
+  }, [user, fetchSettings, fetchPrograms, fetchDepartments, fetchSubjects, fetchAllStudents, fetchFaculty, addToast]);
 
   // 🔹 Select student from dashboard
   const handleSelectStudentFromDashboard = useCallback(async (student) => {
@@ -206,6 +212,7 @@ export default function AdminDashboard() {
           {activeTab === "enrollment" && userRole === "admin" && (
             <EnrollmentTab
               students={students}
+              setStudents={setStudents}
               settings={settings}
               filterYear={filterYear}
               setYearFilter={setFilterYear}
@@ -244,7 +251,7 @@ export default function AdminDashboard() {
               settings={settings}
               students={students}
               setStudents={setStudents}
-              fetchStudents={fetchStudents}
+              fetchAllStudents={fetchAllStudents}
               programs={programs}
               programFilter={filterProgram}
               setProgramFilter={setFilterProgram}

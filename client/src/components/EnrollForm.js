@@ -17,12 +17,6 @@ const EnrollForm = ({
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [isEnrollmentOpen, setIsEnrollmentOpen] = useState(false);
 
-  /** Convert date to local date only */
-  const toLocalDateOnly = (dateString) => {
-    const d = new Date(dateString);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  };
-
   /** Determine if enrollment is open */
   useEffect(() => {
     if (!settings) return;
@@ -44,12 +38,21 @@ const EnrollForm = ({
       return;
     }
 
-    const today = toLocalDateOnly(new Date());
-    const start = toLocalDateOnly(startDateStr);
-    const end = toLocalDateOnly(endDateStr);
+    // Convert to PH timezone
+    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    const start = new Date(new Date(startDateStr).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    const end = new Date(new Date(endDateStr).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
 
-    setIsEnrollmentOpen(today >= start && today <= end);
+    // Check enrollment date
+    const isDateValid = today >= start && today <= end;
+
+    // Check working hours: 8:00 - 16:00
+    const hour = today.getHours();
+    const isWorkingHours = hour >= 8 && hour < 16;
+
+    setIsEnrollmentOpen(isDateValid && isWorkingHours);
   }, [settings, semester]);
+
 
   /** Fetch enrollment status from backend */
   useEffect(() => {
@@ -120,21 +123,39 @@ const EnrollForm = ({
   /** Render status message */
   const renderStatusMessage = () => {
     if (enrollmentStatus === 2)
-      return <span style={{ color: "orange", fontWeight: "bold" }}>
-        Your enrollment has been submitted and is awaiting verification.
-      </span>;
+      return (
+        <span style={{ color: "orange", fontWeight: "bold" }}>
+          Your enrollment has been submitted and is awaiting verification.
+        </span>
+      );
     if (enrollmentStatus === 3)
-      return <span style={{ color: "green", fontWeight: "bold" }}>
-        You are now enrolled. Please study well.
-      </span>;
-    if (enrollmentStatus === 1)
-      return <span style={{ color: "blue", fontWeight: "bold" }}>
-        Enrollment is open. Please select your subjects to proceed.
-      </span>;
-    return <span style={{ color: "gray", fontWeight: "bold" }}>
-      Enrollment is not available at this time.
-    </span>;
+      return (
+        <span style={{ color: "green", fontWeight: "bold" }}>
+          You are now enrolled. Please study well.
+        </span>
+      );
+    if (enrollmentStatus === 1) {
+      if (isEnrollmentOpen) {
+        return (
+          <span style={{ color: "blue", fontWeight: "bold" }}>
+            Enrollment is open. Please select your subjects to proceed.
+          </span>
+        );
+      } else {
+        return (
+          <span style={{ color: "gray", fontWeight: "bold" }}>
+            Enrollment is not available at this time.
+          </span>
+        );
+      }
+    }
+    return (
+      <span style={{ color: "gray", fontWeight: "bold" }}>
+        Enrollment is not available at this time.
+      </span>
+    );
   };
+
 
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -148,6 +169,10 @@ const EnrollForm = ({
           >
             Enroll Now
           </button>
+        ) : enrollmentStatus === 1 ? (
+          <span style={{ color: "gray", fontWeight: "bold" }}>
+            Enrollment is open only from 8:00 AM to 4:00 PM | Philippines time.
+          </span>
         ) : (
           renderStatusMessage()
         )}

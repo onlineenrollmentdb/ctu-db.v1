@@ -232,11 +232,31 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: "400px" }} ref={modalRef}>
             <h5>{announcement.type} Semester Enrollment</h5>
-            <p>Enrollment Starts: <span style={{ color: "var(--primary-color)" }}>{announcement.enrollStart.toLocaleDateString()}</span></p>
-            <p>Enrollment Ends: <span style={{ color: "var(--primary-color)" }}>{announcement.enrollEnd.toLocaleDateString()}</span></p>
+            <p>
+              Enrollment Starts:{" "}
+              <span style={{ color: "var(--primary-color)" }}>
+                {new Date(announcement.enrollStart).toLocaleString("en-PH", {
+                  month: "long",       // Full month name
+                  day: "numeric",      // Day of the month
+                  year: "numeric",
+                })}
+              </span>
+            </p>
+            <p>
+              Enrollment Ends:{" "}
+              <span style={{ color: "var(--primary-color)" }}>
+                {new Date(announcement.enrollEnd).toLocaleString("en-PH", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric"
+                })}
+              </span>
+            </p>
+            <p><span style={{ color: "var(--primary-color)" }}>8:00 AM - 4:00 PM</span></p>
           </div>
         </div>
       )}
+
 
       {/* Academic Year / Semester */}
       {settings && (

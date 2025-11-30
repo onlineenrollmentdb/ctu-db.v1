@@ -31,7 +31,7 @@ export default function GradesPage() {
       setLoading(true);
       try {
         const res = await API.get(
-          `/students/${student.student_id}/academic-history`
+          `/academic/academic-history/${student.student_id}`
         );
         setSubjects(res.data || []);
       } catch (err) {
@@ -64,11 +64,13 @@ export default function GradesPage() {
   // 📈 Average per year + semester
   const semesterMap = {};
   gradedSubjects.forEach((s) => {
-    const key = `${s.year_level || "Unknown"}-${s.subject_semester || "?"}`;
+    const sem = s.semester || s.subject_semester || "?"; // use backend value directly
+    const key = `${s.year_level || "?"}-${sem}`;
+
     if (!semesterMap[key]) {
       semesterMap[key] = {
-        year_level: s.year_level || "Unknown",
-        semester: s.subject_semester || "?",
+        year_level: s.year_level || "?",
+        semester: sem,
         grades: [],
       };
     }
@@ -80,8 +82,8 @@ export default function GradesPage() {
       const avg =
         entry.grades.reduce((sum, g) => sum + g, 0) / entry.grades.length;
       return {
-        name: `${entry.year_level} Year ${entry.semester} Sem`,
-        grade: avg,
+        name: `${entry.year_level} Year ${entry.semester} Sem`, // now uses backend value
+        grade: parseFloat(avg.toFixed(2)),
         year_level: entry.year_level,
         semester: entry.semester,
       };
@@ -91,20 +93,19 @@ export default function GradesPage() {
       const yearB = parseInt(b.year_level) || 0;
       if (yearA !== yearB) return yearA - yearB;
 
-      const semA = (a.semester || "").toString();
-      const semB = (b.semester || "").toString();
-      return semA.localeCompare(semB);
+      const semOrder = { "1st": 1, "2nd": 2 };
+      const semA = semOrder[a.semester] || 0;
+      const semB = semOrder[b.semester] || 0;
+      return semA - semB;
     });
 
   // 📚 Group subjects by Year + Semester for table
   const groupedSubjects = Object.entries(
     [...subjects].reduce((groups, subj) => {
       const sem =
-        subj.subject_semester === 1
-          ? "1st"
-          : subj.subject_semester === 2
-          ? "2nd"
-          : subj.subject_semester || "?";
+        subj.semester === "1st" || subj.semester === "2nd"
+          ? subj.semester
+          : "?";
       const key = `Year ${subj.year_level || "?"} - ${sem} Semester`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(subj);
@@ -201,7 +202,7 @@ export default function GradesPage() {
 
                             {sortedRecords.map((s, i) => (
                               <tr key={`${group}-${i}`}>
-                                <td>{s.subject_section}</td>
+                                <td>{s.subject_code}</td>
                                 <td>{s.subject_desc || "—"}</td>
                                 <td>{s.units || "—"}</td>
                                 <td>{s.grade ?? "—"}</td>

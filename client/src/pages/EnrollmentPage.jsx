@@ -179,32 +179,35 @@ useEffect(() => {
             reason: "Max retakes reached (3x within 6 years)",
           };
     }
+
     if (subject.prerequisites?.length > 0) {
-      const unmet = subject.prerequisites.filter((pr) => {
-        const code = typeof pr === "string" ? pr : pr.code || pr.subject_code;
-        return !passedSubjects.includes(code);
-      });
+      // Map passedSubjects to their subject codes
+      const passedCodes = allSubjects
+        .filter(s => passedSubjects.includes(s.subject_section))
+        .map(s => s.subject_code);
+
+      // Find unmet prerequisites
+      const unmet = subject.prerequisites.filter(pr => !passedCodes.includes(pr.code));
 
       if (unmet.length > 0) {
-        const unmetCodes = unmet.map((pr) =>
-          typeof pr === "string"
-            ? pr
-            : pr.code || pr.subject_code || JSON.stringify(pr)
-        );
+        const unmetCodes = unmet.map(pr => pr.code);
         return {
           status: "blocked",
           reason: `You need to pass the following subjects: ${unmetCodes.join(", ")}`,
         };
       }
     }
+
     if (!checkYearStanding()) {
       return {
         status: "blocked",
         reason: "Year Standing: Must complete previous semester subjects first",
       };
     }
+
     return { status: "eligible" };
   };
+
 
   /** 🔹 Checkbox handler */
   const handleCheckboxChange = (subject, checked) => {

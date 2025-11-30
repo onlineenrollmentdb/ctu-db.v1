@@ -123,33 +123,7 @@
 .profile-grid-advanced > :nth-child(26) { grid-column: 4 / 5; grid-row: 8 / 9; }
 .profile-grid-advanced > :nth-child(27) { grid-column: 1 / 2; grid-row: 8 / 9; }
 
-/* ===== FORM STYLING ===== */
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
 
-.form-label {
-  font-size: 0.85rem;
-  margin-bottom: 0.3rem;
-  color: #444;
-}
-
-.form-input {
-  padding: 0.6rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  overflow-y: auto;
-}
-
-.form-static {
-  padding: 0.6rem;
-  font-size: 1rem;
-  font-weight: bold;
-  background: #e2e2e2;
-  border-radius: 8px;
-  overflow-y: auto;
-}
 
 .input-error {
   border: 1px solid #ff4d4f;

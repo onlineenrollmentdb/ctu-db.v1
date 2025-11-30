@@ -107,12 +107,12 @@ const ResetPasswordPage = () => {
             {showConfirm ? "Hide" : "Show"}
           </i>
         </div>
-        <p style={{ fontSize: 12, marginTop: 10, textAlign: "left" }}>
+        <p className="signup-text">
             Back to <a href="/">Login</a>
         </p>
         {confirmError && <p className="invalid">{confirmError}</p>}
 
-        <button type="submit" className="btn t-btn" disabled={!isValid}>
+        <button type="submit" className="btn btn-primary" disabled={!isValid}>
           Reset Password
         </button>
       </form>

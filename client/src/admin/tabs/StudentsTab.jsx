@@ -5,7 +5,7 @@ import API from "../../api/api";
 import AdminHeaderControls from "../components/AdminHeaderControls";
 import { CustomSelect } from "../../components/customSelect";
 
-export default function StudentsTab({ settings, students, setStudents, fetchStudents, programs, fetchPrograms }) {
+export default function StudentsTab({ settings, students, setStudents, fetchAllStudents, programs, fetchPrograms }) {
   const { addToast } = useToast();
   const { role: userRole } = useAuth();
 
@@ -41,7 +41,7 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
       try {
         setLoading(true);
         if (fetchPrograms) await fetchPrograms();
-        await fetchStudents();
+        await fetchAllStudents();
       } catch (err) {
         console.error(err);
         addToast("Failed to fetch data ❌", "error");
@@ -50,7 +50,7 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
       }
     };
     loadData();
-  }, [fetchStudents, fetchPrograms, addToast]);
+  }, [fetchAllStudents, fetchPrograms, addToast]);
 
   // Filtered students
   const filteredStudents = students.filter((s) => {
@@ -150,7 +150,7 @@ export default function StudentsTab({ settings, students, setStudents, fetchStud
     try {
       await API.delete(`admin/students/${deleteStudent.student_id}`);
       addToast("Student deleted successfully 🗑️", "success");
-      fetchStudents();
+      fetchAllStudents();
       closeDeleteModal();
     } catch {
       addToast("Failed to delete student ❌", "error");

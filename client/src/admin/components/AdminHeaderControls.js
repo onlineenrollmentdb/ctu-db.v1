@@ -79,10 +79,10 @@ export const AdminHeaderControls = ({
     }
   };
 
-  const handleYearChange = (e) => {
-    const value = e.target.value;
+  const handleYearChange = (value) => {
     setYearFilter(value ? Number(value) : "");
   };
+
 
   return (
     <div className="admin-header-controls">

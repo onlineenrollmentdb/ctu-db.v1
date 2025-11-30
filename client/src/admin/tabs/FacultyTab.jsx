@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import API from "../../api/api";
 import AdminHeaderControls from "../components/AdminHeaderControls";
+import { CustomSelect } from "../../components/customSelect";
 
 dayjs.extend(relativeTime);
 
@@ -213,28 +214,29 @@ export default function FacultyTab({ settings, faculty, setFaculty, fetchFaculty
                 className="full"
                 value={form.email}
                 onChange={(e) => handleChange("email", e.target.value)}
-              />
-              <select
-                className="full"
-                value={form.department_id}
-                onChange={(e) => handleChange("department_id", e.target.value)}
-              >
-                <option value="">-- Select Department --</option>
-                {departments.map((d) => (
-                  <option key={d.department_id} value={d.department_id}>
-                    {d.department_name}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="full"
-                value={form.role}
-                onChange={(e) => handleChange("role", e.target.value)}
-              >
-                <option value="dean">Dean</option>
-                <option value="advisor">Advisor</option>
-                <option value="grader">Grader</option>
-              </select>
+                />
+                <CustomSelect
+                  options={[
+                    { value: "", label: "-- Select Department --" },
+                    ...departments.map((d) => ({
+                      value: d.department_id,
+                      label: d.department_name,
+                    }))
+                  ]}
+                  value={form.department_id}
+                  onChange={(val) => handleChange("department_id", val)}
+                  placeholder="-- Select Department --"
+                />
+                <CustomSelect
+                  options={[
+                    { value: "dean", label: "Dean" },
+                    { value: "advisor", label: "Advisor" },
+                    { value: "grader", label: "Grader" },
+                  ]}
+                  value={form.role}
+                  onChange={(val) => handleChange("role", val)}
+                  placeholder="Select role"
+                />
               <input
                 type="password"
                 placeholder={editingFaculty ? "New Password (optional)" : "Password"}

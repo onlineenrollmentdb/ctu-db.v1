@@ -1,44 +1,71 @@
 const db = require('../db');
 
-// 🔹 Get Academic History
+// 🔹 Get Academic History with Subject Info
 exports.getAcademicHistory = async (req, res) => {
-    const { studentId } = req.params;
+  const { studentId } = req.params;
 
-    if (!studentId) {
-        return res.status(400).json({ error: "Student ID is required" });
-    }
+  if (!studentId) {
+    return res.status(400).json({ error: "student_id is required" });
+  }
 
-    try {
-        const [rows] = await db.execute(
-            `
-            SELECT
-                ah.history_id,
-                ah.subject_section,
-                s.subject_code,
-                ah.semester,
-                ah.academic_year,
-                ah.grade,
-                ah.status
-            FROM academic_history ah
-            JOIN subjects s ON ah.subject_section = s.subject_section
-            WHERE ah.student_id = ?
-            ORDER BY ah.academic_year DESC, ah.semester DESC, ah.subject_section ASC
-            `,
-            [studentId]
-        );
+  try {
+    const [rows] = await db.execute(
+      `
+      SELECT
+        ah.history_id,
+        ah.student_id,
+        ah.subject_section,
+        ah.semester,
+        ah.academic_year,
+        ah.grade,
+        ah.status,
+        s.subject_code,
+        s.subject_desc,
+        s.units,
+        s.lec_hours,
+        s.lab_hours,
+        s.year_level,
+        s.program_id,
+        GROUP_CONCAT(
+          CASE
+            WHEN pr.year_standing_level IS NOT NULL THEN CONCAT(pr.year_standing_level, '_YEAR_STANDING')
+            ELSE sp.subject_code
+          END
+          ORDER BY pr.type, pr.prereq_subject_code
+          SEPARATOR ','
+        ) AS prerequisites
+      FROM academic_history ah
+      LEFT JOIN subjects s ON ah.subject_section = s.subject_section
+      LEFT JOIN prerequisites pr ON s.subject_code = pr.subject_code
+      LEFT JOIN subjects sp ON pr.prereq_subject_code = sp.subject_code
+      WHERE ah.student_id = ?
+      GROUP BY ah.history_id
+      ORDER BY s.year_level, ah.semester, s.subject_code
+      `,
+      [studentId] 
+    );
 
-        const formattedRows = rows.map(r => ({
-            ...r,
-            grade: r.grade !== null ? r.grade : "-",
-            status: r.status || "-"
-        }));
+    const formatted = rows.map(row => ({
+      ...row,
+      prerequisites: row.prerequisites
+        ? row.prerequisites.split(',').map(p => {
+            if (p.includes('_YEAR_STANDING')) {
+              const level = Number(p.split('_')[0]);
+              const suffix = ['st', 'nd', 'rd', 'th'];
+              return { type: 'Pre', code: `${level}${suffix[level - 1]} Year Standing`, year_standing_level: level };
+            }
+            return { type: 'Pre', code: p, year_standing_level: null };
+          })
+        : []
+    }));
 
-        res.json(formattedRows);
-    } catch (err) {
-        console.error("Error fetching academic history:", err);
-        res.status(500).json({ error: "Failed to fetch academic history" });
-    }
+    res.status(200).json(formatted);
+  } catch (err) {
+    console.error("❌ Error fetching academic history:", err);
+    res.status(500).json({ error: "Failed to fetch academic history" });
+  }
 };
+
 
 // 🔹 Helper: Map total credits to year level
 const getYearLevel = (totalCredits) => {
@@ -48,35 +75,6 @@ const getYearLevel = (totalCredits) => {
     if (totalCredits >= 90) return 4;
 };
 
-// 🔹 Update a specific student's year level
-exports.updateStudentYearLevel = async (studentId) => {
-    try {
-        const [rows] = await db.execute(
-            `SELECT s.year_level, COALESCE(SUM(e.total_units),0) AS total_credits
-             FROM students s
-             LEFT JOIN enrollments e
-             ON s.student_id = e.student_id AND e.enrollment_status = 2
-             WHERE s.student_id = ?
-             GROUP BY s.student_id, s.year_level`,
-            [studentId]
-        );
-
-        if (!rows.length) return;
-
-        const student = rows[0];
-        const newLevel = getYearLevel(student.total_credits);
-
-        if (newLevel !== student.year_level) {
-            await db.execute(
-                `UPDATE students SET year_level = ? WHERE student_id = ?`,
-                [newLevel, studentId]
-            );
-            console.log(`✅ Updated year level for student ${studentId} to ${newLevel}`);
-        }
-    } catch (err) {
-        console.error(`Failed to update year level for student ${studentId}:`, err);
-    }
-};
 
 // 🔹 Update all students (used for end-of-semester batch)
 exports.updateAllStudentYearLevels = async () => {

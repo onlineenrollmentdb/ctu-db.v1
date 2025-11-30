@@ -155,5 +155,6 @@
   .total-units{font-size: 0.9rem;}
 }
 @media (max-width: 500px){
+  .enrollment-action-bar{font-size: 0.8rem;}
   .total-units{font-size: 0.5rem;}
 }

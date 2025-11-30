@@ -2,7 +2,6 @@ const db = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const { updateStudentYearLevel } = require('./academicController');
 const settingsService = require('./settingsController'); // or correct path
 require('dotenv').config();
 
@@ -55,9 +54,6 @@ exports.login = async (req, res) => {
 
         // 🔹 Hybrid enrollment: create if not exists
         await createEnrollmentIfNotExists(student.student_id);
-
-        // 🔹 Update year level for this student (hybrid)
-        await updateStudentYearLevel(student.student_id);
 
         res.json({ message: 'Login successful', student: studentData, token });
     } catch (err) {
@@ -117,7 +113,7 @@ exports.checkStudent = async (req, res) => {
 
     await sgMail.send(msg);
 
-    res.json({ message: "Verification code sent to your email please check (including spam folder). code will expire in 5 minutes." });
+    res.json({ message: `Verification code sent to your email: ${student.email} Please check (including spam folder). code will expire in 5 minutes.` });
   } catch (err) {
     console.error("checkStudent error:", err);
     res

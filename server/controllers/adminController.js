@@ -1,6 +1,5 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const fastcsv = require("fast-csv");
 const fs = require("fs");
 const path = require("path");
 const db = require("../db");
@@ -8,7 +7,7 @@ const dayjs = require("dayjs");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { sendNotification } = require("../helpers/notificationHelper");
-const { fetchStudents, fetchEnrolledStudents } = require("../helpers/studentHelpers");
+const { fetchAllStudents } = require("../helpers/studentHelpers");
 const sgMail = require('@sendgrid/mail');
 require("dotenv").config();
 
@@ -27,7 +26,7 @@ exports.login = async (req, res) => {
     const { username, password } = req.body;
 
     const [rows] = await db.execute(
-      "SELECT * FROM admin WHERE admin_user = ?",
+      "SELECT * FROM admin WHERE admin_id = ?",
       [username]
     );
 
@@ -174,10 +173,11 @@ exports.resend2FA = async (req, res) => {
 
 exports.getAllStudents = async (req, res) => {
   try {
-    const { academic_year, semester } = req.query; // query params from URL
-    const students = await fetchStudents({}, academic_year, semester);
+    const { academic_year, semester } = req.query;
 
-    // Always return an array
+    // Use the correct function
+    const students = await fetchAllStudents(academic_year, semester);
+
     res.json(Array.isArray(students) ? students : []);
   } catch (err) {
     console.error("getAllStudents error:", err);
@@ -185,36 +185,6 @@ exports.getAllStudents = async (req, res) => {
   }
 };
 
-
-exports.getApprovedStudents = async (req, res) => {
-	try {
-		const students = await fetchStudents({ onlyApproved: true });
-		res.json(students);
-	} catch (err) {
-		console.error("getApprovedStudents error:", err);
-		res.status(500).json({ error: "Failed to fetch approved students" });
-	}
-};
-
-exports.getPendingStudents = async (req, res) => {
-	try {
-		const students = await fetchStudents({ onlyPending: true });
-		res.json(students);
-	} catch (err) {
-		console.error("getPendingStudents error:", err);
-		res.status(500).json({ error: "Failed to fetch pending students" });
-	}
-};
-
-exports.getEnrolledStudents = async (req, res) => {
-	try {
-		const students = await fetchEnrolledStudents();
-		res.json(students);
-	} catch (err) {
-		console.error("getEnrolledStudents error:", err);
-		res.status(500).json({ error: "Failed to fetch enrolled students" });
-	}
-};
 
 exports.getStudentSubjects = async (req, res) => {
   const { student_id } = req.params;
@@ -540,99 +510,6 @@ exports.deleteStudent = async (req, res) => {
 // -----------------------------
 // 📤 EXPORT ENROLLED STUDENTS TO CSV (FILTERED)
 // -----------------------------
-exports.exportEnrolledStudentsCSV = async (req, res) => {
-  const { year, semester, type } = req.query;
-
-  if (!year) return res.status(400).json({ error: "Year is required" });
-  if (!semester && type === "regular")
-    return res.status(400).json({ error: "Semester is required for regular students" });
-
-  const connection = await db.getConnection();
-  await connection.beginTransaction();
-
-  try {
-    const today = dayjs().format("YYYYMMDD");
-    const filename = `${today}_${type.toUpperCase()}_${year}_${semester || ""}.csv`;
-
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-    const csvStream = fastcsv.format({ headers: true });
-    csvStream.pipe(res);
-
-    // Fetch students with enrollments
-    let studentsQuery = `
-      SELECT s.student_id,
-             s.first_name,
-             s.middle_name,
-             s.last_name,
-             s.year_level,
-             s.section,
-             p.program_name,
-             e.enrollment_id,
-             e.total_units
-      FROM students s
-      JOIN programs p ON s.program_id = p.program_id
-      JOIN enrollments e ON s.student_id = e.student_id
-      WHERE e.enrollment_status = 2
-        AND e.academic_year = ?
-        AND s.student_status = ?`;
-
-    const params = [year, type === "regular" ? "Regular" : "Irregular"];
-    if (type === "regular") {
-      studentsQuery += " AND e.semester = ?";
-      params.push(semester);
-    }
-
-    const [students] = await connection.execute(studentsQuery, params);
-
-    const enrollmentIdsToUpdate = [];
-
-    for (const student of students) {
-      const row = {
-        student_id: student.student_id,
-        full_name: `${student.last_name}, ${student.first_name} ${student.middle_name || ""}`,
-        year_level: student.year_level,
-        section: student.section || "-",
-        program_name: student.program_name,
-        total_units: student.total_units || 0,
-      };
-
-      if (type === "irregular") {
-        const [subjects] = await connection.execute(
-          `SELECT s.subject_code
-           FROM enrollment_subjects es
-           JOIN subjects s ON es.subject_section = s.subject_section
-           WHERE es.enrollment_id = ?
-           ORDER BY es.subject_section ASC
-           LIMIT 10`,
-          [student.enrollment_id]
-        );
-
-        for (let i = 0; i < 10; i++) {
-          row[`s${i + 1}`] = subjects[i]?.subject_code || "-";
-        }
-      }
-
-      csvStream.write(row);
-      enrollmentIdsToUpdate.push(student.enrollment_id);
-    }
-
-    // Finish CSV stream
-    csvStream.end();
-
-  } catch (err) {
-    await connection.rollback();
-    connection.release();
-    console.error("❌ exportEnrolledStudentsCSV error:", err);
-
-    // Only send JSON if headers not sent yet
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Failed to export enrolled students" });
-    }
-  }
-};
-
 // POST /api/admin/login
 exports.adminLogin = async (req, res) => {
     const { username, password } = req.body;

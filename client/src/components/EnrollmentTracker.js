@@ -137,7 +137,7 @@ const EnrollmentTracker = ({ student, currentStep = 0, setCurrentStep, settings,
           {!status && (
             <span className="skip-step">
               or click{" "}
-              <button className="clearance-link" onClick={handleSkipClearance}>here</button> to skip
+              <button className="clearance-link" onClick={handleSkipClearance}>here</button> to skip (Pilot Testing)
             </span>
           )}
         </div>
@@ -178,7 +178,7 @@ const EnrollmentTracker = ({ student, currentStep = 0, setCurrentStep, settings,
             {status === 2 && (
               <span className="skip-step">
                 or click{" "}
-                <button className="clearance-link" onClick={handleEnrollmentSkip}>here</button> to skip
+                <button className="clearance-link" onClick={handleEnrollmentSkip}>here</button> to skip (Pilot Testing)
               </span>
             )}
           </div>

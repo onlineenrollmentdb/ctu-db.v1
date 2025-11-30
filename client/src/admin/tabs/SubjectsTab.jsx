@@ -22,6 +22,7 @@ export default function SubjectsTab({
   const [isEditing, setIsEditing] = useState(false);
   const { addToast } = useToast();
 
+  const semesters = useMemo(() => ["1st", "2nd"], []);
   const isAdmin = userRole === "admin";
   const isDisabled = !isAdmin || !isEditing;
 
@@ -44,14 +45,13 @@ export default function SubjectsTab({
   }, [subjects, searchTerm, programFilter, filterYear]);
 
   // Group subjects by semester
-  const semesters = ["1st", "2nd", "Summer"];
   const subjectsBySemester = useMemo(
     () =>
       semesters.map((sem) => ({
         semester: sem,
         items: filteredSubjects.filter((s) => s.semester === sem),
       })),
-    [filteredSubjects]
+    [filteredSubjects, semesters]
   );
 
   // Save subject changes

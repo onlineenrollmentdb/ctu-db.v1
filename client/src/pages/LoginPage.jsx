@@ -16,6 +16,9 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resetCooldown, setResetCooldown] = useState(0);
+  const [isResetting, setIsResetting] = useState(false);
+
 
   const { login, user, role } = useAuth();
   const { addToast } = useToast();
@@ -27,6 +30,16 @@ const LoginPage = () => {
     if (role === "admin" || role === "faculty") navigate("/admin/dashboard");
     else if (role === "student") navigate("/home");
   }, [user, role, navigate]);
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+
+    const interval = setInterval(() => {
+      setResetCooldown(prev => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+    }, [resetCooldown]);
 
   const handleLogin = useCallback(async (e) => {
     e.preventDefault();
@@ -62,19 +75,32 @@ const LoginPage = () => {
   }, [userId, password, login, navigate]);
 
   const handleForgotPassword = useCallback(async () => {
-    if (!userId) return addToast("Enter your ID first.", "warning");
+    if (!userId) {
+      addToast("Enter your ID first.", "warning");
+      return;
+    }
+
+    // Prevent spam
+    if (resetCooldown > 0) {
+      addToast(
+        "Too many requests in a short time. Please wait a moment.",
+        "warning"
+      );
+      return;
+    }
 
     try {
-      setLoading(true);
+      setIsResetting(true);
+      setResetCooldown(30); // start 30s cooldown
+
       await API.post("/students/forgot-password", { student_id: userId });
-      addToast("Password reset link sent to your email (check spam folder).", "success");
+      addToast("Password reset link sent to your email.", "success");
     } catch (err) {
-      console.error(err);
       addToast(err.response?.data?.error || "Failed to send reset link.", "error");
     } finally {
-      setLoading(false);
+      setIsResetting(false);
     }
-  }, [userId, addToast]);
+  }, [userId, resetCooldown, addToast]);
 
   return (
     <div className="t-body">
@@ -88,10 +114,14 @@ const LoginPage = () => {
         <div className="input-with-icon">
           <img src={userIcon} alt="User Icon" className="input-icon" loading="lazy" />
           <input
-            type="text"
+            type="number"
             placeholder="ID"
             value={userId}
-            onChange={(e) => setUserId(e.target.value)}
+            onChange={(e) => {
+              if (e.target.value.length <= 7) {
+                setUserId(e.target.value);
+              }
+            }}
             required
           />
         </div>
@@ -112,14 +142,21 @@ const LoginPage = () => {
 
         <div className="forgot-section">
           <span>Forgot your password? </span>
-            <a href="/" onClick={handleForgotPassword}>Reset it here</a>
+          <button
+            type="button"
+            className="link-button"
+            onClick={handleForgotPassword}
+            disabled={isResetting || resetCooldown > 0}
+          >
+            {isResetting ? "Sending..." : resetCooldown > 0 ? `Wait (${resetCooldown})` : "reset pass"}
+          </button>
         </div>
 
         <p className="signup-text">
-          <a href="/signup">Signup here</a> to activate account
+          Account not activated? <a href="/signup" className="link-button">verify now</a>
         </p>
 
-        <button className="btn t-btn" type="submit" disabled={loading}>
+        <button className="btn btn-primary" type="submit" disabled={loading}>
           {loading ? "Please wait..." : "Login"}
         </button>
       </form>

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api/api';
-import ctuLogo from '../img/ctu_logo.webp';
-import keyIcon from '../img/key.webp';
 import { useNavigate } from 'react-router-dom';
 import "../css/LoginPage.css";
+
+
+import ctuLogo from '../img/ctu_logo.webp';
+import keyIcon from '../img/key.webp';
+import userIcon from "../img/user.webp";
 
 const SignupPage = () => {
   const [step, setStep] = useState(1);
@@ -150,20 +153,27 @@ const SignupPage = () => {
            'Set Your Password'}
         </h3>
 
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {error && <p className='error-text'>{error}</p>}
         {success && <p className='signup-text' style={{ textAlign: "center", margin: "10px 0" }}>{success}</p>}
 
         {/* Step 1: Student ID */}
         {step === 1 && (
           <>
-            <input
-              type="text"
-              placeholder="Enter Student ID"
-              value={student_id}
-              onChange={(e) => setStudentId(e.target.value)}
-              required
-            />
-            <button className="btn t-btn" type="submit" disabled={loading}>
+            <div className="input-with-icon">
+              <img src={userIcon} alt="User Icon" className="input-icon" loading="lazy" />
+              <input
+                type="number"
+                placeholder="ID"
+                value={student_id}
+                onChange={(e) => {
+                  if (e.target.value.length <= 7) {
+                    setStudentId(e.target.value);
+                  }
+                }}
+                required
+              />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? 'Checking...' : 'Verify'}
             </button>
           </>
@@ -172,19 +182,26 @@ const SignupPage = () => {
         {/* Step 2: Verification Code */}
         {step === 2 && (
           <>
-            <input
-              type="text"
-              placeholder="Enter 6-digit Code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-            />
-            <button className="btn t-btn" type="submit" disabled={loading}>
+          <div className="input-with-icon">
+              <img src={keyIcon} alt="Key Icon" className="input-icon" loading="lazy" />
+              <input
+                type="text"
+                placeholder="Enter 6-digit Code"
+                value={code}
+                onChange={(e) => {
+                  if (e.target.value.length <= 6) {
+                    setCode(e.target.value);
+                  }
+                }}
+                required
+              />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? 'Verifying...' : 'Verify Code'}
             </button>
             <button
               type="button"
-              className={`btn t-btn ${resendTimer > 0 || loading ? 'disabled-btn' : ''}`}
+              className={`btn btn-cancel ${resendTimer > 0 || loading ? 'disabled-btn' : ''}`}
               onClick={handleResendCode}
               disabled={resendTimer > 0 || loading}
               style={{ marginTop: '10px' }}
@@ -210,6 +227,15 @@ const SignupPage = () => {
                 {showPassword ? "Hide" : "Show"}
               </i>
             </div>
+            
+            <ul>
+              {passwordErrors.map((err, idx) => (
+                <li key={idx} className="invalid">✗ {err}</li>
+              ))}
+              {password && passwordErrors.length === 0 && (
+                <li className="valid">✔ Password looks good</li>
+              )}
+            </ul>
 
             <div className="input-with-icon password-container">
               <img src={keyIcon} alt="Key Icon" className="input-icon" />
@@ -225,25 +251,17 @@ const SignupPage = () => {
               </i>
             </div>
 
-            <ul>
-              {passwordErrors.map((err, idx) => (
-                <li key={idx} className="invalid">✗ {err}</li>
-              ))}
-              {password && passwordErrors.length === 0 && (
-                <li className="valid">✔ Password looks good</li>
-              )}
-            </ul>
 
             {confirmError && <p className="invalid">{confirmError}</p>}
 
-            <button className="btn t-btn" type="submit" disabled={loading}>
+            <button className="btn bt-primary" type="submit" disabled={loading}>
               {loading ? 'Saving...' : 'Set Password'}
             </button>
           </>
         )}
 
         <p className='signup-text'>
-          Already have an account? <a href="/">Login here</a>
+          Go back to <a href="/" className="link-button">login</a> page
         </p>
       </form>
     </div>

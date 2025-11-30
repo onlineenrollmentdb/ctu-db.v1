@@ -14,7 +14,6 @@ router.post(
 );
 
 // ✅ Student academic & profile routes
-router.get("/:student_id/academic-history", studentController.getAcademicHistory);
 router.get("/:student_id", studentController.getStudentById);
 router.put("/:student_id", studentController.updateStudent);
 
