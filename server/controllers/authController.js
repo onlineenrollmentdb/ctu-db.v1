@@ -41,7 +41,7 @@ exports.login = async (req, res) => {
             [student_id]
         );
 
-        if (!rows.length) return res.status(401).json({ error: 'Invalid student ID' });
+        if (!rows.length) return res.status(401).json({ error: 'Invalid/Not Found Student ID' });
 
         const student = rows[0];
         if (!student.is_approved) return res.status(403).json({ error: 'Account not yet activated' });
@@ -77,7 +77,7 @@ exports.checkStudent = async (req, res) => {
     );
 
     if (!rows.length)
-      return res.status(404).json({ error: "Invalid student ID." });
+      return res.status(404).json({ error: "Invalid/Not found student ID." });
 
     const student = rows[0];
 

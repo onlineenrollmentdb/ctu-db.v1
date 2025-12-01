@@ -42,7 +42,7 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
 
     useEffect(() => {
     if (!student) {
-      navigate("/login"); // redirect to login page
+      navigate("/"); // redirect to login page
     }
   }, [student, navigate]);
 

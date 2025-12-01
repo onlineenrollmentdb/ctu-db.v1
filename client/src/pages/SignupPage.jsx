@@ -176,6 +176,24 @@ const SignupPage = () => {
             <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? 'Checking...' : 'Verify'}
             </button>
+              <span className="note">
+                <i className="bi bi-exclamation-circle-fill text-warning"></i>
+                {" "}
+                If your student ID is not found, please contact us through email:
+                {" "}
+                <span
+                  className="link-button"
+                  onClick={() =>
+                    window.open(
+                      "https://mail.google.com/mail/?view=cm&fs=1&to=online.enrollmentdb@gmail.com",
+                      "_blank"
+                    )
+                  }
+                >
+                  click here
+                </span>
+                <p className='note'>Provide your Student ID, Year and Section</p>
+              </span>
           </>
         )}
 
@@ -227,7 +245,7 @@ const SignupPage = () => {
                 {showPassword ? "Hide" : "Show"}
               </i>
             </div>
-            
+
             <ul>
               {passwordErrors.map((err, idx) => (
                 <li key={idx} className="invalid">✗ {err}</li>
@@ -261,7 +279,7 @@ const SignupPage = () => {
         )}
 
         <p className='signup-text'>
-          Go back to <a href="/" className="link-button">login</a> page
+          Back to <a href="/" className="link-button">Login</a>
         </p>
       </form>
     </div>

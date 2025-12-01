@@ -148,12 +148,12 @@ const LoginPage = () => {
             onClick={handleForgotPassword}
             disabled={isResetting || resetCooldown > 0}
           >
-            {isResetting ? "Sending..." : resetCooldown > 0 ? `Wait (${resetCooldown})` : "reset pass"}
+            {isResetting ? "Sending..." : resetCooldown > 0 ? `Wait (${resetCooldown})` : "Reset Pass"}
           </button>
         </div>
 
         <p className="signup-text">
-          Account not activated? <a href="/signup" className="link-button">verify now</a>
+          Sign-up here for CTU students only <a href="/signup" className="link-button">Sign-up</a>
         </p>
 
         <button className="btn btn-primary" type="submit" disabled={loading}>

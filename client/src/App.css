@@ -291,6 +291,11 @@ Layout
   overflow-y: auto;
 }
 
+.note{
+  font-size: 10px;
+  color: gray;
+}
+
 /* -------------------------------------------------
 Buttons
 ------------------------------------------------- */
@@ -574,6 +579,11 @@ Responsive Layouts
 
   .checkbox input[type="checkbox"], .checkbox svg {
     height: 10px;
+  }
+
+  .note{
+    font-size: 6px;
+    color: gray;
   }
 }
 
