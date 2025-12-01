@@ -9,6 +9,8 @@ export const AdminHeaderControls = ({
   setDepartmentFilter,
   programFilter,
   setProgramFilter,
+  statusFilter,
+  setStatusFilter,
   filterYear,
   setYearFilter,
   settings,
@@ -25,6 +27,7 @@ export const AdminHeaderControls = ({
   const showProgramFilter = ["dashboard", "enrollment", "subjects", "students"].includes(tab);
   const showYearFilter = ["enrollment", "subjects", "students"].includes(tab);
   const showDepartmentFilter = tab === "faculty";
+  const showStatusFilter = ["students", "enrollment"].includes(tab);
 
   const getSafeFullName = (s) =>
     `${s.first_name || ""} ${s.middle_name || ""} ${s.last_name || ""}`.trim();
@@ -83,15 +86,14 @@ export const AdminHeaderControls = ({
     setYearFilter(value ? Number(value) : "");
   };
 
-
   return (
-    <div className="admin-header-controls">
+    <div className="admin-header-controls flex flex-wrap gap-2 items-center">
       {/* Academic Year & Semester */}
       <div className="semester-year">
         <span>
           <strong>Academic Year:</strong> {settings?.current_academic_year || "N/A"} |
           <strong> Semester:</strong> {settings?.current_semester || "N/A"}
-          </span>
+        </span>
       </div>
 
       {/* Search Bar */}
@@ -133,7 +135,7 @@ export const AdminHeaderControls = ({
       </div>
 
       {/* Filters */}
-      <div className="filters-wrapper">
+      <div className="filters-wrapper flex gap-2 flex-wrap">
         {showDepartmentFilter && (
           <CustomSelect
             options={[{ value: "", label: "All Departments" }, ...departments.map(d => ({ value: d.department_id, label: d.department_code }))]}
@@ -152,10 +154,29 @@ export const AdminHeaderControls = ({
         )}
         {showYearFilter && (
           <CustomSelect
-            options={[{ value: "", label: "All Years" }, ...[1, 2, 3, 4].map(y => ({ value: y, label: `${y}st Year` }))]}
+            options={[
+              { value: "", label: "All Years" },
+              ...[1, 2, 3, 4].map((y) => {
+                const suffix = y === 1 ? "st" : y === 2 ? "nd" : y === 3 ? "rd" : "th";
+                return { value: y, label: `${y}${suffix} Year` };
+              }),
+            ]}
             value={filterYear || ""}
             onChange={handleYearChange}
             placeholder="All Years"
+          />
+        )}
+
+        {showStatusFilter && (
+          <CustomSelect
+            options={[
+              { value: "", label: "All Status" },
+              { value: "Regular", label: "Regular" },
+              { value: "Irregular", label: "Irregular" },
+            ]}
+            value={statusFilter || ""}
+            onChange={(val) => setStatusFilter(val)}
+            placeholder="All Status"
           />
         )}
       </div>

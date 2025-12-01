@@ -5,7 +5,14 @@ import API from "../../api/api";
 import AdminHeaderControls from "../components/AdminHeaderControls";
 import { CustomSelect } from "../../components/customSelect";
 
-export default function StudentsTab({ settings, students, setStudents, fetchAllStudents, programs, fetchPrograms }) {
+export default function StudentsTab({
+  settings,
+  students,
+  setStudents,
+  fetchAllStudents,
+  programs,
+  fetchPrograms,
+}) {
   const { addToast } = useToast();
   const { role: userRole } = useAuth();
 
@@ -26,12 +33,14 @@ export default function StudentsTab({ settings, students, setStudents, fetchAllS
 
   const [searchQuery, setSearchQuery] = useState("");
   const [programFilter, setProgramFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [filterYear, setYearFilter] = useState(""); // added to fix AdminHeaderControls
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 10;
 
-  // 🔹 Delete Modal States
+  // Delete modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteStudent, setDeleteStudent] = useState(null);
   const [deleteInputs, setDeleteInputs] = useState({ student_id: "", confirm_text: "" });
@@ -52,15 +61,17 @@ export default function StudentsTab({ settings, students, setStudents, fetchAllS
     loadData();
   }, [fetchAllStudents, fetchPrograms, addToast]);
 
-  // Filtered students
+  // Filter students
   const filteredStudents = students.filter((s) => {
     const query = searchQuery.toLowerCase();
     const fullName = `${s.first_name} ${s.last_name} ${s.middle_name || ""}`.toLowerCase();
     const matchesSearch =
       s.student_id.toString().includes(query) || fullName.includes(query);
-    const matchesProgram =
-      !programFilter || s.program_id === Number(programFilter);
-    return matchesSearch && matchesProgram;
+    const matchesProgram = !programFilter || s.program_id === Number(programFilter);
+    const matchesStatus = !statusFilter || s.student_status === statusFilter;
+    const matchesYear = !filterYear || s.year_level === Number(filterYear);
+
+    return matchesSearch && matchesProgram && matchesStatus && matchesYear;
   });
 
   // Pagination logic
@@ -68,7 +79,7 @@ export default function StudentsTab({ settings, students, setStudents, fetchAllS
   const startIndex = (currentPage - 1) * studentsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, startIndex + studentsPerPage);
 
-  // ================= MODAL FUNCTIONS =================
+  // Modal functions
   const openModal = (student = null) => {
     setEditingStudent(student);
     setForm(
@@ -123,7 +134,7 @@ export default function StudentsTab({ settings, students, setStudents, fetchAllS
     }
   };
 
-  // ================= DELETE FUNCTIONS =================
+  // Delete functions
   const openDeleteModal = (student) => {
     setDeleteStudent(student);
     setDeleteInputs({ student_id: "", confirm_text: "" });
@@ -167,6 +178,10 @@ export default function StudentsTab({ settings, students, setStudents, fetchAllS
         programs={programs}
         programFilter={programFilter}
         setProgramFilter={setProgramFilter}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        filterYear={filterYear} // added
+        setYearFilter={setYearFilter} // added
         settings={settings}
         tab="students"
       />
@@ -213,14 +228,12 @@ export default function StudentsTab({ settings, students, setStudents, fetchAllS
                     }[s.enrollment_status] || "Not Active"}
                   </td>
                   <td className="action-buttons d-flex gap-2 justify-content-center">
-                    {/* Edit Icon */}
                     <i
                       className="bi bi-pencil-square text-primary action-icon"
                       title="Edit"
                       onClick={() => openModal(s)}
                       style={{ cursor: "pointer", fontSize: "1.2rem" }}
                     ></i>
-                    {/* Delete Icon */}
                     <i
                       className="bi bi-trash text-danger action-icon"
                       title="Delete"
@@ -267,7 +280,6 @@ export default function StudentsTab({ settings, students, setStudents, fetchAllS
                 onChange={(val) => handleChange("year_level", val)}
                 placeholder="Select Year Level"
               />
-
               <input placeholder="Email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
               <CustomSelect
                 options={programs.map((p) => ({ value: p.program_id, label: p.program_code }))}

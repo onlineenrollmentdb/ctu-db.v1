@@ -188,27 +188,39 @@ exports.getAllStudents = async (req, res) => {
 
 exports.getStudentSubjects = async (req, res) => {
   const { student_id } = req.params;
+  const { academic_year, semester } = req.query; // 🔹 Expect from FE
 
   try {
+    // 1️⃣ Require AY + Semester
+    if (!academic_year || !semester) {
+      return res.status(400).json({
+        error: "academic_year and semester are required",
+      });
+    }
+
+    // 2️⃣ Fetch specific enrollment
     const [enrollmentRows] = await db.execute(
       `
-      SELECT
-        e.*
-      FROM enrollments e
-      WHERE e.student_id = ?
-      ORDER BY e.enrollment_id DESC
+      SELECT *
+      FROM enrollments
+      WHERE student_id = ?
+        AND academic_year = ?
+        AND semester = ?
+      ORDER BY enrollment_id DESC
       LIMIT 1
       `,
-      [student_id]
+      [student_id, academic_year, semester]
     );
 
     if (enrollmentRows.length === 0) {
-      return res.status(404).json({ message: "No enrollment found for this student." });
+      return res.status(404).json({
+        message: "No enrollment found for this student in the specified semester.",
+      });
     }
 
     const enrollment = enrollmentRows[0];
 
-    // 2️⃣ Fetch all subjects linked to this enrollment
+    // 3️⃣ Fetch subjects from enrollment_subjects
     const [subjects] = await db.execute(
       `
       SELECT
@@ -228,6 +240,7 @@ exports.getStudentSubjects = async (req, res) => {
       semester: enrollment.semester,
       status: enrollment.status,
       faculty_id: enrollment.faculty_id,
+      enrollment_id: enrollment.enrollment_id,
       subjects,
     });
   } catch (error) {
@@ -235,6 +248,7 @@ exports.getStudentSubjects = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch student subjects" });
   }
 };
+
 /* -------------------------------------------------------------------------- */
 /*                              ✅ APPROVAL FLOW                              */
 /* -------------------------------------------------------------------------- */

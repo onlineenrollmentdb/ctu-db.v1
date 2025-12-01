@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import AdminHeaderControls from "../components/AdminHeaderControls";
-import jsPDF from "jspdf";
+import {jsPDF} from "jspdf";
 import autoTable from "jspdf-autotable";
 import API from "../../api/api";
 import { useToast } from "../../context/ToastContext";
 import defaultUser from "../../img/default_user.webp";
+import logo from "../../img/ctu_logo.png"
 import "../css/enrollment.css";
 
 export default function EnrollmentTab({ settings, filterYear, setYearFilter, programs, students, setStudents }) {
@@ -22,15 +23,14 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
 
   const serverURL = process.env.REACT_APP_SOCKET;
 
-  const handleExportPDF = () => {
-    // Only allow export from Enrolled tab
+  const handleExportPDF = async () => {
     if (activeTab !== "enrolled") {
       addToast("You can only export students from the Enrolled tab ❌", "error");
       return;
     }
 
-    // Determine which students to export based on status filter
     let exportStudents = [];
+
     if (statusFilter === "Regular") {
       if (regularStudents === 0) {
         addToast("No Regular students to export ❌", "error");
@@ -48,7 +48,6 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
         (s) => s.enrollment_status === 3 && s.student_status === "Irregular"
       );
     } else {
-      // If no status filter, export all enrolled students
       if (totalEnrolled === 0) {
         addToast("No enrolled students to export ❌", "error");
         return;
@@ -56,38 +55,136 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
       exportStudents = students.filter((s) => s.enrollment_status === 3);
     }
 
-    // Prepare table data
-    const tableColumn = ["Student ID", "Full Name", "Year", "Section", "Program", "Status"];
-    const tableRows = exportStudents.map((s) => [
-      s.student_id,
-      `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
-      s.year_level,
-      s.section || "-",
-      s.program_name || "-",
-      s.student_status || "-",
-    ]);
+    // 🔹 Fetch subjects for all students in parallel
+    try {
+      await Promise.all(
+        exportStudents.map((s) =>
+          API.get(`admin/students/${s.student_id}/subjects`, {
+            params: { academic_year: s.academic_year, semester: s.semester },
+          })
+            .then((res) => (s.subjects = res.data.subjects || []))
+            .catch(() => (s.subjects = []))
+        )
+      );
+    } catch (err) {
+      console.error("Error fetching subjects for export:", err);
+    }
 
-    // Create PDF
-    const doc = new jsPDF();
+    // 🧾 START PDF
+    const doc = new jsPDF("p", "mm", "a4");
 
-    // Header
+    // 🔹 Convert logo to Base64
+    const logoBase64 = await fetch(logo)
+      .then((res) => res.blob())
+      .then(
+        (blob) =>
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          })
+      );
+
+    // 🔹 Add Logo
+    doc.setFillColor(255, 255, 255); // white
+    doc.rect(10, 10, 20, 20, 'F'); // fill a white rectangle behind logo
+    doc.addImage(logoBase64, "PNG", 10, 10, 20, 20);
+
+    // 🔹 Header text
     doc.setFontSize(16);
-    doc.text("Student Enrollment List", 14, 20);
-    doc.setFontSize(10);
-    doc.text(`Academic Year: ${settings?.current_academic_year || "N/A"}`, 14, 28);
-    doc.text(`Semester: ${settings?.current_semester || "N/A"}`, 14, 34);
-    doc.text(`Status: Enrolled${statusFilter ? " - " + statusFilter : ""}`, 14, 40);
+    doc.text("Cebu Technological University", 40, 18);
 
-    // Table
+    doc.setFontSize(13);
+    doc.text("Student Enrollment List", 40, 26);
+
+    doc.setFontSize(10);
+    doc.text(`Academic Year: ${settings?.current_academic_year}`, 14, 40);
+    doc.text(`Semester: ${settings?.current_semester}`, 14, 45);
+    doc.text(
+      `Status: Enrolled ${statusFilter ? `- ${statusFilter}` : ""}`,
+      14,
+      50
+    );
+
+    let tableColumn = [];
+    let tableRows = [];
+
+    // ================================
+    //      REGULAR EXPORT FORMAT
+    // ================================
+    if (statusFilter === "Regular") {
+      tableColumn = ["Student ID", "Fullname", "Year", "Section", "Program"];
+      tableRows = exportStudents.map((s) => [
+        s.student_id,
+        `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
+        s.year_level,
+        s.section || "-",
+        s.program_code || "-",
+      ]);
+    }
+    // ================================
+    //     IRREGULAR EXPORT FORMAT
+    // ================================
+    else if (statusFilter === "Irregular") {
+      tableColumn = [
+        "ID",
+        "Fullname",
+        "Year",
+        "Section",
+        "Program",
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7",
+        "S8",
+        "S9",
+        "S10",
+      ];
+
+      tableRows = exportStudents.map((s) => {
+        const subjects = (s.subjects || []).map((sub) => sub.subject_code || "-");
+        const padded = [...subjects, ...Array(10 - subjects.length).fill("-")].slice(
+          0,
+          10
+        );
+
+        return [
+          s.student_id,
+          `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
+          s.year_level,
+          s.section || "-",
+          s.program_code || "-",
+          ...padded,
+        ];
+      });
+    }
+    // ================================
+    //   DEFAULT ALL ENROLLED EXPORT
+    // ================================
+    else {
+      tableColumn = ["Student ID", "Fullname", "Year", "Section", "Program"];
+      tableRows = exportStudents.map((s) => [
+        s.student_id,
+        `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
+        s.year_level,
+        s.section || "-",
+        s.program_code || "-",
+      ]);
+    }
+
+    // 📌 Render table
     autoTable(doc, {
-      startY: 50,
+      startY: 55,
       head: [tableColumn],
       body: tableRows,
-      styles: { fontSize: 9 },
+      styles: { fontSize: statusFilter === "Irregular" ? 7 : 9 },
       headStyles: { fillColor: [22, 160, 133] },
     });
 
-    // Save
+    // 📌 Save file
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     doc.save(`${today}_EnrolledStudents.pdf`);
 
@@ -99,7 +196,16 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
     setSelectedStudent(student);
 
     try {
-      const res = await API.get(`admin/students/${student.student_id}/subjects`);
+      // 👉 send semester + academic year so backend fetches correct enrollment_id
+      const res = await API.get(
+        `admin/students/${student.student_id}/subjects`,
+        {
+          params: {
+            academic_year: student.academic_year,
+            semester: student.semester,
+          }
+        }
+      );
 
       setStudentSubjects(res.data.subjects || []);
 
@@ -107,6 +213,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
         ...prev,
         academic_year: res.data.academic_year,
         semester: res.data.semester,
+        status: res.data.status,
       }));
     } catch (err) {
       console.error("Error fetching subject records:", err);
@@ -114,6 +221,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
       setStudentSubjects([]);
     }
   };
+
 
   // 🔹 Revoke or Confirm Enrollment
   const handleEnrollmentAction = async (action) => {
@@ -302,13 +410,13 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
         <div className="dashboard-cards" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div
             className="dashboard-card"
-            onClick={() => setActiveTab("enrolled")}
+            onClick={() => setActiveTab("enrolled") && statusFilter === ""}
           >
             <h3>Total Enrolled</h3><p>{totalEnrolled}</p>
           </div>
           <div
             className="dashboard-card"
-            onClick={() => setActiveTab("pending")}
+            onClick={() => setActiveTab("pending") && statusFilter === ""}
           >
             <h3>Total Pending</h3><p>{totalPending}</p>
           </div>
@@ -397,9 +505,13 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
               </div>
 
               {/* Revoke / Confirm Buttons */}
-              <button className="btn btn-delete" onClick={() => handleEnrollmentAction("revoke")}>Revoke</button>
-              <button className="btn btn-primary" onClick={() => handleEnrollmentAction("confirm")}>Confirm</button>
-            </div>
+              {activeTab === "pending" && (
+                <div>
+                  <button className="btn btn-delete" onClick={() => handleEnrollmentAction("revoke")}>Revoke</button>
+                  <button className="btn btn-primary" onClick={() => handleEnrollmentAction("confirm")}>Confirm</button>
+                </div>
+              )}
+              </div>
           </div>
         </div>
       )}
