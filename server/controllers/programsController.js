@@ -83,3 +83,28 @@ exports.getDepartments = async (req, res) => {
         res.status(500).json({ error: "Failed to fetch departments" });
     }
 };
+
+// --------------------
+// Get max section for a given program and year
+// --------------------
+exports.getMaxSection = async (req, res) => {
+  const { program_code, year_level } = req.params;
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT MAX(CAST(section AS UNSIGNED)) AS max_section
+       FROM students
+       WHERE program_code = ? AND year_level = ?`,
+      [program_code, year_level]
+    );
+
+    if (rows.length === 0 || !rows[0].max_section) {
+      return res.json({ max_section: 1 }); // fallback to 1
+    }
+
+    res.json({ max_section: rows[0].max_section });
+  } catch (err) {
+    console.error("Error fetching max section:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CustomSelect } from "../../components/customSelect";
+import API from "../../api/api";
 import "../css/header.css";
 
 export const AdminHeaderControls = ({
@@ -13,6 +14,8 @@ export const AdminHeaderControls = ({
   setStatusFilter,
   filterYear,
   setYearFilter,
+  filterSection,
+  setSectionFilter,
   settings,
   tab,
   filteredStudents = [],
@@ -23,14 +26,41 @@ export const AdminHeaderControls = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const wrapperRef = useRef(null);
+  const [maxSection, setMaxSection] = useState("A");
 
   const showProgramFilter = ["dashboard", "enrollment", "subjects", "students"].includes(tab);
   const showYearFilter = ["enrollment", "subjects", "students"].includes(tab);
   const showDepartmentFilter = tab === "faculty";
   const showStatusFilter = ["students", "enrollment"].includes(tab);
+  const showSectionFilter = ["students", "enrollment"].includes(tab);
 
   const getSafeFullName = (s) =>
     `${s.first_name || ""} ${s.middle_name || ""} ${s.last_name || ""}`.trim();
+
+  // Fetch max section when programFilter or filterYear changes
+  useEffect(() => {
+    const fetchMaxSection = async () => {
+      if (!programFilter || !filterYear) {
+        setMaxSection("A");
+        return;
+      }
+
+      try {
+        const res = await API.get(
+          `/programs/departments/${programFilter}/${filterYear}/max-section`
+        );
+        setMaxSection(res.data.max_section || "A");
+
+        if (filterSection && filterSection > res.data.max_section) {
+          setSectionFilter("");
+        }
+      } catch (err) {
+        console.error("Failed to fetch max section:", err);
+        setMaxSection("A");
+      }
+    };
+    fetchMaxSection();
+  }, [programFilter, filterYear, filterSection, setSectionFilter]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -102,7 +132,11 @@ export const AdminHeaderControls = ({
           <i className="bi bi-search search-icon"></i>
           <input
             type="text"
-            placeholder={tab === "records" ? "Search by ID or Name" : "Search by ID, Name, or Subject"}
+            placeholder={
+              tab === "records"
+                ? "Search by ID or Name"
+                : "Search by ID, Name, or Subject"
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -112,7 +146,10 @@ export const AdminHeaderControls = ({
         {tab === "records" && isDropdownOpen && (
           <ul className="search-dropdown-overlay">
             {filteredStudents
-              .filter((s, index, self) => index === self.findIndex((stu) => stu.student_id === s.student_id))
+              .filter(
+                (s, index, self) =>
+                  index === self.findIndex((stu) => stu.student_id === s.student_id)
+              )
               .map((s, idx) => {
                 const fullName = getSafeFullName(s);
                 return (
@@ -138,7 +175,10 @@ export const AdminHeaderControls = ({
       <div className="filters-wrapper flex gap-2 flex-wrap">
         {showDepartmentFilter && (
           <CustomSelect
-            options={[{ value: "", label: "All Departments" }, ...departments.map(d => ({ value: d.department_id, label: d.department_code }))]}
+            options={[
+              { value: "", label: "All Departments" },
+              ...departments.map((d) => ({ value: d.department_id, label: d.department_code })),
+            ]}
             value={departmentFilter || ""}
             onChange={(val) => setDepartmentFilter(val)}
             placeholder="All Departments"
@@ -146,7 +186,10 @@ export const AdminHeaderControls = ({
         )}
         {showProgramFilter && (
           <CustomSelect
-            options={[{ value: "", label: "All Programs" }, ...programs.map(p => ({ value: p.program_id, label: p.program_code }))]}
+            options={[
+              { value: "", label: "All Programs" },
+              ...programs.map((p) => ({ value: p.program_id, label: p.program_code })),
+            ]}
             value={programFilter || ""}
             onChange={(val) => setProgramFilter(val ? Number(val) : "")}
             placeholder="All Programs"
@@ -166,7 +209,23 @@ export const AdminHeaderControls = ({
             placeholder="All Years"
           />
         )}
-
+        {showSectionFilter && (
+          <CustomSelect
+            options={[
+              { value: "", label: "All Sections" },
+              ...Array.from(
+                { length: maxSection.charCodeAt(0) - 64 },
+                (_, i) => {
+                  const val = String.fromCharCode(65 + i);
+                  return { value: val, label: val };
+                }
+              ),
+            ]}
+            value={filterSection || ""}
+            onChange={(val) => setSectionFilter(val)}
+            placeholder="All Sections"
+          />
+        )}
         {showStatusFilter && (
           <CustomSelect
             options={[

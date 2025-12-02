@@ -124,16 +124,16 @@ export default function GradesPage() {
           <div className="grades-grid">
             {/* Top stats */}
             <div className="grades-card avg">
-              Average Grade <p>{avgGrade ?? "—"}</p>
+              Average Grade <p>{avgGrade ?? "0"}</p>
             </div>
             <div className="grades-card total">
-              Total Subjects <p>{totalSubjects || "—"}</p>
+              Total Subjects <p>{totalSubjects || "0"}</p>
             </div>
             <div className="grades-card passed">
-              Passed <p>{passed || "—"}</p>
+              Passed <p>{passed || "0"}</p>
             </div>
             <div className="grades-card failed">
-              Failed <p>{failed || "—"}</p>
+              Failed <p>{failed || "0"}</p>
             </div>
 
             {/* Graph bottom-left */}
@@ -205,7 +205,7 @@ export default function GradesPage() {
                                 <td>{s.subject_code}</td>
                                 <td>{s.subject_desc || "—"}</td>
                                 <td>{s.units || "—"}</td>
-                                <td>{s.grade ?? "—"}</td>
+                                <td>{s.grade ?? "0"}</td>
                                 <td>{s.status ?? "—"}</td>
                               </tr>
                             ))}

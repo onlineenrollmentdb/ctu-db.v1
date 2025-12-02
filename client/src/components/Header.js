@@ -111,7 +111,7 @@ const Header = ({ onHome, onEnroll, onGrades, onProfile, onLogout, settings }) =
         data = { message: `${s.type} semester enrollment is coming soon!`, color: "orange", ...s };
         break;
       } else if (now >= s.semStart && now <= s.semEnd) {
-        data = { message: `${s.type} semester is ongoing!`, color: "blue", ...s };
+        data = { message: `${s.type} semester is ongoing!`, color: "black", ...s };
         break;
       }
     }

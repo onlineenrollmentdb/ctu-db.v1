@@ -9,5 +9,6 @@ const programsController = require("../controllers/programsController");
 router.get("/", programsController.getPrograms);
 router.get("/departments", programsController.getDepartments);
 router.get("/departments-programs", programsController.getDepartmentsWithPrograms);
+router.get("/departments/:program_code/:year_level/max-section", programsController.getMaxSection);
 
 module.exports = router;

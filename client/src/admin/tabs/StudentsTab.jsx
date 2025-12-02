@@ -26,6 +26,7 @@ export default function StudentsTab({
     last_name: "",
     middle_name: "",
     year_level: "",
+    section: "",
     email: "",
     student_status: "Regular",
     program_id: "",
@@ -34,7 +35,8 @@ export default function StudentsTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [programFilter, setProgramFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [filterYear, setYearFilter] = useState(""); // added to fix AdminHeaderControls
+  const [filterYear, setYearFilter] = useState("");
+  const [filterSection, setSectionFilter] = useState("");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,8 +72,9 @@ export default function StudentsTab({
     const matchesProgram = !programFilter || s.program_id === Number(programFilter);
     const matchesStatus = !statusFilter || s.student_status === statusFilter;
     const matchesYear = !filterYear || s.year_level === Number(filterYear);
+    const matchesSection = !filterSection || s.section === filterSection;
 
-    return matchesSearch && matchesProgram && matchesStatus && matchesYear;
+    return matchesSearch && matchesProgram && matchesStatus && matchesYear && matchesSection;
   });
 
   // Pagination logic
@@ -91,6 +94,7 @@ export default function StudentsTab({
             last_name: "",
             middle_name: "",
             year_level: "",
+            section: "",
             email: "",
             student_status: "Regular",
             program_id: "",
@@ -180,8 +184,10 @@ export default function StudentsTab({
         setProgramFilter={setProgramFilter}
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
-        filterYear={filterYear} // added
-        setYearFilter={setYearFilter} // added
+        filterYear={filterYear}
+        setYearFilter={setYearFilter}
+        filterSection={filterSection}
+        setSectionFilter={setSectionFilter}
         settings={settings}
         tab="students"
       />
@@ -204,6 +210,7 @@ export default function StudentsTab({
                 <th>Name</th>
                 <th>Email</th>
                 <th>Year</th>
+                <th>Section</th>
                 <th>Status</th>
                 <th>Program</th>
                 <th>Enrollment</th>
@@ -217,6 +224,7 @@ export default function StudentsTab({
                   <td>{`${s.first_name} ${s.last_name}`}</td>
                   <td>{s.email}</td>
                   <td>{s.year_level}</td>
+                  <td>{s.section || "-"}</td>
                   <td>{s.student_status}</td>
                   <td>{programs.find((p) => p.program_id === s.program_id)?.program_code || "-"}</td>
                   <td>
@@ -279,6 +287,13 @@ export default function StudentsTab({
                 value={form.year_level}
                 onChange={(val) => handleChange("year_level", val)}
                 placeholder="Select Year Level"
+              />
+              <input
+                placeholder="Section"
+                value={form.section}
+                onChange={(e) =>
+                  handleChange("section", e.target.value.toUpperCase().charAt(0))
+                }
               />
               <input placeholder="Email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
               <CustomSelect

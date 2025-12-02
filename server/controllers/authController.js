@@ -113,7 +113,7 @@ exports.checkStudent = async (req, res) => {
 
     await sgMail.send(msg);
 
-    res.json({ message: `Verification code sent to your email: ${student.email} Please check (including spam folder). code will expire in 5 minutes.` });
+    res.json({ message: `Verification code sent to your email: ${student.email} !Please check your spam folder!. code will expire in 5 minutes.` });
   } catch (err) {
     console.error("checkStudent error:", err);
     res
