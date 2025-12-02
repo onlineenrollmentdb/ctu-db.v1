@@ -453,7 +453,6 @@ exports.addStudent = async (req, res) => {
     res.status(500).json({ error: "Failed to add student" });
   }
 };
-
 // Update an existing student
 exports.updateStudent = async (req, res) => {
   try {
@@ -464,6 +463,7 @@ exports.updateStudent = async (req, res) => {
       last_name,
       email,
       year_level,
+      section,        // <-- added section
       student_status,
       program_id,
     } = req.body;
@@ -473,9 +473,9 @@ exports.updateStudent = async (req, res) => {
 
     const [result] = await db.execute(
       `UPDATE students
-       SET first_name=?, middle_name=?, last_name=?, email=?, year_level=?, student_status=?, program_id=?
+       SET first_name=?, middle_name=?, last_name=?, email=?, year_level=?, section=?, student_status=?, program_id=?
        WHERE student_id=?`,
-      [first_name, middle_name || null, last_name, email, year_level, student_status, programIdNum, studentIdNum]
+      [first_name, middle_name || null, last_name, email, year_level, section, student_status, programIdNum, studentIdNum]
     );
 
     if (result.affectedRows === 0) {
@@ -497,6 +497,7 @@ exports.updateStudent = async (req, res) => {
     res.status(500).json({ error: "Failed to update student" });
   }
 };
+
 
 // Delete a student
 exports.deleteStudent = async (req, res) => {
