@@ -1,8 +1,5 @@
 const db = require("../db");
 
-/**
- * Fetch all students with latest enrollment (pending or enrolled)
- */
 exports.fetchAllStudents = async (academic_year = null, semester = null, includeProgram = true) => {
     const query = `
         SELECT

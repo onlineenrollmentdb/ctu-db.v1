@@ -7,17 +7,28 @@ import API from "../../api/api";
 const parseDBDate = (dbDate) => (dbDate ? new Date(dbDate) : new Date());
 const formatMonthDay = (date) => {
   const parsedDate = parseDBDate(date);
-  return parsedDate ? parsedDate.toLocaleDateString("en-US", { month: "long", day: "2-digit" }) : "";
+  return parsedDate
+    ? parsedDate.toLocaleDateString("en-US", { month: "long", day: "2-digit" })
+    : "";
 };
 
-export default function SettingsTab({ settings, setSettings, fetchSettings, loading, setLoading}) {
+export default function SettingsTab({
+  settings,
+  setSettings,
+  fetchSettings,
+  loading,
+  setLoading,
+  admin,
+  setAdmin,
+}) {
   const [editMode, setEditMode] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [previewSettings, setPreviewSettings] = useState(null);
   const [showShiftModal, setShowShiftModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
   const { addToast } = useToast();
 
-
+  // ======== SETTINGS HANDLERS ========
   const handleChange = (key, date) => {
     if (!editMode) return;
     setSettings((prev) => ({ ...prev, [key]: date }));
@@ -39,19 +50,43 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
   const handleSave = async () => {
     try {
       setLoading(true);
-      await API.put("/settings", {
-        first_sem_start: parseDBDate(settings.first_sem_start).toISOString().split("T")[0],
+
+      const payload = {
+        first_sem_start: parseDBDate(settings.first_sem_start)
+          .toISOString()
+          .split("T")[0],
         first_sem_end: parseDBDate(settings.first_sem_end).toISOString().split("T")[0],
-        second_sem_start: parseDBDate(settings.second_sem_start).toISOString().split("T")[0],
+        second_sem_start: parseDBDate(settings.second_sem_start)
+          .toISOString()
+          .split("T")[0],
         second_sem_end: parseDBDate(settings.second_sem_end).toISOString().split("T")[0],
         summer_start: parseDBDate(settings.summer_start).toISOString().split("T")[0],
         summer_end: parseDBDate(settings.summer_end).toISOString().split("T")[0],
-        first_sem_enrollment_start: parseDBDate(settings.first_sem_enrollment_start).toISOString().split("T")[0],
-        first_sem_enrollment_end: parseDBDate(settings.first_sem_enrollment_end).toISOString().split("T")[0],
-        second_sem_enrollment_start: parseDBDate(settings.second_sem_enrollment_start).toISOString().split("T")[0],
-        second_sem_enrollment_end: parseDBDate(settings.second_sem_enrollment_end).toISOString().split("T")[0],
+        first_sem_enrollment_start: parseDBDate(settings.first_sem_enrollment_start)
+          .toISOString()
+          .split("T")[0],
+        first_sem_enrollment_end: parseDBDate(settings.first_sem_enrollment_end)
+          .toISOString()
+          .split("T")[0],
+        second_sem_enrollment_start: parseDBDate(settings.second_sem_enrollment_start)
+          .toISOString()
+          .split("T")[0],
+        second_sem_enrollment_end: parseDBDate(settings.second_sem_enrollment_end)
+          .toISOString()
+          .split("T")[0],
         current_academic_year: settings.current_academic_year,
-      });
+
+        // NEW SETTINGS
+        enable_2fa: settings.enable_2fa ? 1 : 0,
+        admin_username: settings.admin_username,
+      };
+
+      if (settings.new_password && settings.new_password.trim() !== "") {
+        payload.new_password = settings.new_password;
+      }
+
+      await API.put("/settings", payload);
+
       addToast("Settings updated successfully!", "success");
       setEditMode(false);
       fetchSettings();
@@ -64,6 +99,25 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
     }
   };
 
+  const handleAdminUpdate = async (username, password) => {
+    if (!admin?.admin_id) return;
+    try {
+      setLoading(true);
+      await API.put("/admin/account/update", {
+        admin_id: admin.admin_id,
+        admin_user: username,
+        new_password: password || undefined,
+      });
+      addToast("Admin account updated successfully!", "success");
+      setAdmin((prev) => ({ ...prev, admin_user: username }));
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to update admin account", "error");
+    } finally {
+      setLoading(false);
+      setShowAdminModal(false);
+    }
+  };
 
   if (!settings) return <p>Loading settings...</p>;
 
@@ -72,19 +126,25 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
       <div className="header-sub">
         <h1 className="header-main">SETTINGS MANAGEMENT</h1>
       </div>
-      {/* Semesters + Actions */}
+
+      {/* ===== SEMESTERS + ACTIONS ===== */}
       <div className="settings-grid">
         <div className="settings-semesters">
           {["first_sem", "second_sem", "summer"].map((sem) => (
             <div key={sem} className="settings-section minimalist-section">
               <h3>
-                {sem === "first_sem" ? "1st Semester" : sem === "second_sem" ? "2nd Semester" : "Summer"}
+                {sem === "first_sem"
+                  ? "1st Semester"
+                  : sem === "second_sem"
+                  ? "2nd Semester"
+                  : "Summer"}
               </h3>
               <div className="settings-row" style={{ gap: "1rem" }}>
-                {/* Enrollment Date */}
                 {sem !== "summer" && (
                   <div style={{ marginBottom: "1rem" }}>
-                    <label><h2>Enrollment Date</h2></label>
+                    <label>
+                      <h2>Enrollment Date</h2>
+                    </label>
                     {editMode ? (
                       <div style={{ display: "flex", gap: "1rem" }}>
                         {renderPicker(`${sem}_enrollment_start`, "enrollment")}
@@ -92,14 +152,16 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
                       </div>
                     ) : (
                       <h6 style={{ margin: 0 }}>
-                        {formatMonthDay(settings[`${sem}_enrollment_start`])} - {formatMonthDay(settings[`${sem}_enrollment_end`])}
+                        {formatMonthDay(settings[`${sem}_enrollment_start`])} -{" "}
+                        {formatMonthDay(settings[`${sem}_enrollment_end`])}
                       </h6>
                     )}
                   </div>
                 )}
-                {/* Semester Date */}
                 <div style={{ marginBottom: "1rem" }}>
-                  <label><h2>Semester Date</h2></label>
+                  <label>
+                    <h2>Semester Date</h2>
+                  </label>
                   {editMode ? (
                     <div style={{ display: "flex", gap: "1rem" }}>
                       {renderPicker(`${sem}_start`, "semester")}
@@ -107,8 +169,13 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
                     </div>
                   ) : (
                     <h6 style={{ margin: 0 }}>
-                      {formatMonthDay(sem === "summer" ? settings.summer_start : settings[`${sem}_start`])} -{" "}
-                      {formatMonthDay(sem === "summer" ? settings.summer_end : settings[`${sem}_end`])}
+                      {formatMonthDay(
+                        sem === "summer" ? settings.summer_start : settings[`${sem}_start`]
+                      )}{" "}
+                      -{" "}
+                      {formatMonthDay(
+                        sem === "summer" ? settings.summer_end : settings[`${sem}_end`]
+                      )}
                     </h6>
                   )}
                 </div>
@@ -117,7 +184,7 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
           ))}
         </div>
 
-        {/* Actions panel */}
+        {/* ===== ACTIONS PANEL ===== */}
         <div className="settings-actions" style={{ marginTop: "1rem" }}>
           <div>
             <button
@@ -142,7 +209,6 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
               </button>
             )}
 
-            {/* Shift Semester */}
             {editMode && (
               <button
                 className="btn btn-edit"
@@ -158,7 +224,56 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
         </div>
       </div>
 
-      {/* Confirmation Modal */}
+      {/* ===== ADMIN PANEL ===== */}
+      <div className="settings-admin-panel minimalist-section">
+        <h2 style={{ marginTop: "10px" }}>⚙️ Admin Account Security</h2>
+
+        {/* Toggle 2FA */}
+        <div className="toggle-row">
+          <label>Enable 2FA Verification</label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={admin?.is_2fa_enabled === 1}
+              onChange={async () => {
+                if (!admin?.admin_id) return;
+                const newVal = admin.is_2fa_enabled === 1 ? 0 : 1;
+                try {
+                  setLoading(true);
+                  await API.put("/admin/twofa/update", {
+                    admin_id: admin.admin_id,
+                    is_2fa_enabled: newVal,
+                  });
+                  setAdmin((prev) => ({ ...prev, is_2fa_enabled: newVal }));
+                  setSettings((prev) => ({ ...prev, is_2fa_enabled: newVal }));
+                  addToast(
+                    `Two-factor authentication ${newVal ? "Enabled" : "Disabled"}`,
+                    "success"
+                  );
+                } catch (err) {
+                  console.error(err);
+                  addToast("Error updating 2FA setting", "error");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            />
+            <span className="slider round"></span>
+          </label>
+        </div>
+
+        {/* Edit Admin Account Button */}
+        <div style={{ marginTop: "10px" }}>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowAdminModal(true)}
+          >
+            Edit Admin Account
+          </button>
+        </div>
+      </div>
+
+      {/* ===== CONFIRM SAVE MODAL ===== */}
       {showConfirmModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -168,7 +283,10 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
               <button className="btn btn-success me-2" onClick={handleSave}>
                 Yes, Save
               </button>
-              <button className="btn btn-secondary me-2 mt-2" onClick={() => setShowConfirmModal(false)}>
+              <button
+                className="btn btn-secondary me-2 mt-2"
+                onClick={() => setShowConfirmModal(false)}
+              >
                 Cancel
               </button>
             </div>
@@ -176,7 +294,7 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
         </div>
       )}
 
-      {/* Shift Semester Modal (simplified: only 1st sem start/end editable) */}
+      {/* ===== SHIFT SEMESTER MODAL ===== */}
       {showShiftModal && previewSettings && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -187,7 +305,9 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
               <label>1st Semester Start:</label>
               <DatePicker
                 selected={previewSettings.first_sem_start}
-                onChange={(date) => setPreviewSettings((prev) => ({ ...prev, first_sem_start: date }))}
+                onChange={(date) =>
+                  setPreviewSettings((prev) => ({ ...prev, first_sem_start: date }))
+                }
                 dateFormat="MMMM dd"
               />
             </div>
@@ -196,7 +316,9 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
               <label>1st Semester End:</label>
               <DatePicker
                 selected={previewSettings.first_sem_end}
-                onChange={(date) => setPreviewSettings((prev) => ({ ...prev, first_sem_end: date }))}
+                onChange={(date) =>
+                  setPreviewSettings((prev) => ({ ...prev, first_sem_end: date }))
+                }
                 dateFormat="MMMM dd"
               />
             </div>
@@ -212,13 +334,123 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
               >
                 Apply
               </button>
-              <button className="btn btn-secondary me-2 mt-2" onClick={() => setShowShiftModal(false)}>
+              <button
+                className="btn btn-secondary me-2 mt-2"
+                onClick={() => setShowShiftModal(false)}
+              >
                 Cancel
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ===== ADMIN ACCOUNT MODAL ===== */}
+      {showAdminModal && (
+        <AdminAccountModal
+          admin={admin}
+          setAdmin={setAdmin}
+          show={showAdminModal}
+          onClose={() => setShowAdminModal(false)}
+          addToast={addToast}
+          handleAdminUpdate={handleAdminUpdate}
+        />
+      )}
+    </div>
+  );
+}
+
+// ======= ADMIN ACCOUNT MODAL COMPONENT =======
+function AdminAccountModal({ admin, setAdmin, show, onClose, addToast, handleAdminUpdate }) {
+  const [username, setUsername] = useState(admin?.admin_user || "");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordErrors, setPasswordErrors] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading] = useState(false);
+
+  // Password validation
+  React.useEffect(() => {
+    const errors = [];
+    if (password) {
+      if (password.length < 8) errors.push("At least 8 characters");
+      if (!/[A-Z]/.test(password)) errors.push("At least one uppercase letter");
+      if (!/[a-z]/.test(password)) errors.push("At least one lowercase letter");
+      if (!/\d/.test(password)) errors.push("At least one number");
+      if (!/[\W_]/.test(password)) errors.push("At least one special character");
+      if (confirmPassword && password !== confirmPassword) errors.push("Passwords do not match");
+    }
+    setPasswordErrors(errors);
+  }, [password, confirmPassword]);
+
+  const handleSave = async () => {
+    if (passwordErrors.length > 0) return;
+    await handleAdminUpdate(username, password);
+    setPassword("");
+    setConfirmPassword("");
+  };
+
+  if (!show) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content admin-modal">
+        <h3>Edit Admin Account</h3>
+
+        <div className="input-with-icon">
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+        </div>
+
+        <div className="input-with-icon password-container">
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="New Password (leave empty = no change)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <i onClick={() => setShowPassword((prev) => !prev)}>
+            {showPassword ? "Hide" : "Show"}
+          </i>
+        </div>
+
+        <div className="input-with-icon password-container">
+          <input
+            type={showConfirm ? "text" : "password"}
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+          <i onClick={() => setShowConfirm((prev) => !prev)}>
+            {showConfirm ? "Hide" : "Show"}
+          </i>
+        </div>
+
+        {password && passwordErrors.length > 0 && (
+          <ul>
+            {passwordErrors.map((err, idx) => (
+              <li key={idx} className="invalid">
+                ✗ {err}
+              </li>
+            ))}
+          </ul>
+        )}
+        {password && passwordErrors.length === 0 && <p className="valid">✔ Password looks good</p>}
+
+        <div className="modal-buttons">
+          <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
+            {loading ? "Saving..." : "Save Changes"}
+          </button>
+          <button className="btn btn-cancel" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

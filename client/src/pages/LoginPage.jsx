@@ -19,7 +19,6 @@ const LoginPage = () => {
   const [resetCooldown, setResetCooldown] = useState(0);
   const [isResetting, setIsResetting] = useState(false);
 
-
   const { login, user, role } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -31,49 +30,81 @@ const LoginPage = () => {
     else if (role === "student") navigate("/home");
   }, [user, role, navigate]);
 
+  // Forgot password cooldown timer
   useEffect(() => {
     if (resetCooldown <= 0) return;
-
-    const interval = setInterval(() => {
-      setResetCooldown(prev => prev - 1);
-    }, 1000);
-
+    const interval = setInterval(() => setResetCooldown(prev => prev - 1), 1000);
     return () => clearInterval(interval);
-    }, [resetCooldown]);
+  }, [resetCooldown]);
 
+  // ---------------------- HANDLE LOGIN ----------------------
   const handleLogin = useCallback(async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     const loginEndpoints = [
-      { url: "/admin/login", type: "admin", payload: { username: userId, password } },
-      { url: "/faculty/login", type: "faculty", payload: { username: userId, password } },
+      { url: "/admin/login", type: "admin", payload: { id: userId, password } },
+      { url: "/faculty/login", type: "faculty", payload: { id: userId, password } },
       { url: "/auth/login", type: "student", payload: { student_id: userId, password } },
     ];
 
-    for (const ep of loginEndpoints) {
-      try {
-        const res = await API.post(ep.url, ep.payload);
-        if (ep.type === "admin" && res.data.require2FA) {
-          localStorage.setItem("pending_admin_id", res.data.admin_id);
-          navigate("/auth");
-          return;
-        }
+    try {
+      for (const ep of loginEndpoints) {
+        try {
+          const res = await API.post(ep.url, ep.payload);
 
-        const userData = ep.type === "student" ? res.data.student : res.data.user;
-        login(userData, ep.type, res.data.token);
-        return;
-      } catch (err) {
-        if (ep === loginEndpoints[loginEndpoints.length - 1]) {
-          setError(err.response?.data?.error || "Login failed. Check credentials.");
+          // --------- ADMIN LOGIN ---------
+          if (ep.type === "admin") {
+            if (res.data.require2FA) {
+              // 2FA enabled
+              localStorage.setItem("pending_admin_id", res.data.admin_id);
+              navigate("/auth");
+              return;
+            } else {
+              // 2FA disabled
+              const userData = {
+                id: res.data.admin.id,
+                username: res.data.admin.username,
+                ...res.data.admin
+              };
+              login(userData, ep.type, res.data.token);
+              navigate("/admin/dashboard"); // now it will redirect
+              return;
+            }
+          }
+
+          // --------- FACULTY LOGIN ---------
+          if (ep.type === "faculty") {
+            const userData = res.data.user;
+            login(userData, ep.type, res.data.token);
+            navigate("/admin/dashboard");
+            return;
+          }
+
+          // --------- STUDENT LOGIN ---------
+          if (ep.type === "student") {
+            const userData = res.data.student;
+            login(userData, ep.type, res.data.token);
+            navigate("/home");
+            return;
+          }
+
+        } catch (err) {
+          // Show error only on last endpoint
+          if (ep === loginEndpoints[loginEndpoints.length - 1]) {
+            setError(err.response?.data?.error || "Login failed. Check credentials.");
+          }
         }
       }
+    } catch (err) {
+      setError("Login failed. Please try again.");
+    } finally {
+      setLoading(false); // ✅ ensures loading spinner is removed
     }
-
-    setLoading(false);
   }, [userId, password, login, navigate]);
 
+  // ---------------------- HANDLE FORGOT PASSWORD ----------------------
   const handleForgotPassword = useCallback(async () => {
     if (!userId) {
       addToast("Enter your ID first.", "warning");
@@ -92,7 +123,6 @@ const LoginPage = () => {
     try {
       setIsResetting(true);
       setResetCooldown(30); // start 30s cooldown
-
       await API.post("/students/forgot-password", { student_id: userId });
       addToast("Password reset link sent to your email.", "success");
     } catch (err) {
@@ -102,6 +132,7 @@ const LoginPage = () => {
     }
   }, [userId, resetCooldown, addToast]);
 
+  // ---------------------- RENDER ----------------------
   return (
     <div className="t-body">
       <form className="t-container shadow-lg" onSubmit={handleLogin}>
@@ -117,11 +148,7 @@ const LoginPage = () => {
             type="number"
             placeholder="ID"
             value={userId}
-            onChange={(e) => {
-              if (e.target.value.length <= 7) {
-                setUserId(e.target.value);
-              }
-            }}
+            onChange={(e) => setUserId(e.target.value.slice(0, 7))}
             required
           />
         </div>
@@ -135,7 +162,7 @@ const LoginPage = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <i onClick={() => setShowPassword((prev) => !prev)} role="button">
+          <i onClick={() => setShowPassword(prev => !prev)} role="button">
             {showPassword ? "Hide" : "Show"}
           </i>
         </div>
@@ -148,7 +175,11 @@ const LoginPage = () => {
             onClick={handleForgotPassword}
             disabled={isResetting || resetCooldown > 0}
           >
-            {isResetting ? "Sending..." : resetCooldown > 0 ? `Wait (${resetCooldown})` : "Reset Pass"}
+            {isResetting
+              ? "Sending..."
+              : resetCooldown > 0
+              ? `Wait (${resetCooldown})`
+              : "Reset Pass"}
           </button>
         </div>
 

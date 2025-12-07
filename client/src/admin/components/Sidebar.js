@@ -1,16 +1,18 @@
 import React from "react";
-import { useAuth } from "../../context/AuthContext";
 
 export default function Sidebar({
   activeTab,
   setActiveTab,
   logout,
   navigate,
+  adminInfo,
+  currentUser,
+  userRole,
   setSelectedStudent,
   isSidebarOpen,
 }) {
-  const { user, role } = useAuth();
-  const isAdmin = role === "admin";
+
+  const isAdmin = userRole === "admin";
 
   const tabs = [
     { key: "dashboard", label: "Dashboard" },
@@ -29,7 +31,7 @@ export default function Sidebar({
   return (
     <aside className={`admin-sidebar ${isSidebarOpen ? "show" : ""}`}>
       <h2>
-        Welcome {isAdmin ? "Admin" : user?.username || "Faculty Member"}
+        Welcome {isAdmin ? adminInfo?.admin_user : currentUser?.username || "Faculty Member"}
       </h2>
 
       <nav>

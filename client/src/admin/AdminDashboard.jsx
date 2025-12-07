@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [students, setStudents] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [faculty, setFaculty] = useState([]);
+  const [admin, setAdmin] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,18 +39,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
+
   // 🔹 Debounce search input
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedQuery(searchQuery), 300);
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Redirect unauthorized users
-  useEffect(() => {
-    if (!authLoading && (!user || (userRole !== "admin" && userRole !== "faculty"))) {
-      navigate("/");
-    }
-  }, [authLoading, user, userRole, navigate]);
 
   // 🔹 API fetch functions
   const fetchSettings = useCallback(async () => {
@@ -114,6 +110,40 @@ export default function AdminDashboard() {
     }
   }, [addToast]);
 
+  const fetchAdmin = useCallback(async (admin_id) => {
+    if (!admin_id) return; // skip if no ID
+    try {
+      const res = await API.get(`admin/${admin_id}`);
+      setAdmin(res.data);
+
+      setSettings((prev) => ({
+        ...prev,
+        admin_id: res.data.admin_id,
+        admin_user: res.data.admin_user,
+        is_2fa_enabled: res.data.is_2fa_enabled,
+      }));
+    } catch (err) {
+      console.error("Failed to fetch admin:", err);
+      addToast("Failed to fetch admin info ❌", "error");
+    }
+  }, [addToast]);
+
+  // Redirect unauthorized users
+  useEffect(() => {
+    if (!authLoading && (!user || (userRole !== "admin" && userRole !== "faculty"))) {
+      navigate("/");
+      return;
+    }
+
+    if (userRole === "admin") {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        fetchAdmin(parsedUser.id);
+      }
+    }
+  }, [authLoading, user, userRole, navigate, fetchAdmin]);
+
   // 🔹 Initial fetch
   useEffect(() => {
     if (!user) return;
@@ -122,7 +152,8 @@ export default function AdminDashboard() {
       setLoading(true);
       try {
         await fetchSettings();
-        await Promise.allSettled([fetchPrograms(), fetchDepartments(), fetchSubjects(), fetchAllStudents(), fetchFaculty()]);
+        await fetchAllStudents();
+        await Promise.allSettled([fetchPrograms(), fetchDepartments(), fetchSubjects(), fetchFaculty(), fetchAdmin()]);
       } catch {
         addToast("Failed to fetch initial data ❌", "error");
       } finally {
@@ -131,7 +162,7 @@ export default function AdminDashboard() {
     };
 
     fetchAll();
-  }, [user, fetchSettings, fetchPrograms, fetchDepartments, fetchSubjects, fetchAllStudents, fetchFaculty, addToast]);
+  }, [user, fetchSettings, fetchPrograms, fetchDepartments, fetchSubjects, fetchAllStudents, fetchFaculty,fetchAdmin, addToast]);
 
   // 🔹 Select student from dashboard
   const handleSelectStudentFromDashboard = useCallback(async (student) => {
@@ -179,6 +210,7 @@ export default function AdminDashboard() {
           logout={logout}
           navigate={navigate}
           currentUser={user}
+          adminInfo={admin}
           userRole={userRole}
           isSidebarOpen={isSidebarOpen}
         />
@@ -277,6 +309,8 @@ export default function AdminDashboard() {
               fetchSettings={fetchSettings}
               loading={loading}
               setLoading={setLoading}
+              admin={admin}
+              setAdmin={setAdmin}
             />
           )}
         </Suspense>

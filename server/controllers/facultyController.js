@@ -105,15 +105,16 @@ exports.deleteFaculty = async (req, res) => {
 
 exports.loginFaculty = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { id, password } = req.body;
 
-    if (!username || !password) {
+    // ✅ Fix: check id and password, NOT IDBFactory
+    if (!id || !password) {
       return res.status(400).json({ error: "Username and password are required" });
     }
 
     const [rows] = await db.execute(
-      'SELECT * FROM faculties WHERE email = ? OR faculty_id = ?',
-      [username, username]
+      'SELECT * FROM faculties WHERE faculty_id = ?',
+      [id]
     );
 
     if (rows.length === 0) {
@@ -146,6 +147,7 @@ exports.loginFaculty = async (req, res) => {
     res.status(500).json({ error: "Failed to login" });
   }
 };
+
 
 
 // Get all subjects assigned to a faculty (with full subject details)

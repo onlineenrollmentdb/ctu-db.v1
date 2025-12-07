@@ -23,54 +23,64 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 // --------------------
 exports.login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { id, password } = req.body;
 
     const [rows] = await db.execute(
       "SELECT * FROM admin WHERE admin_id = ?",
-      [username]
+      [id]
     );
 
     if (!rows.length) return res.status(401).json({ error: "Invalid credentials" });
 
     const admin = rows[0];
+
     const isMatch = await bcrypt.compare(password, admin.admin_pass);
     if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
-    // Generate 6-digit 2FA code
+    // 🔥 If 2FA DISABLED → Direct login
+    if (admin.is_2fa_enabled === 0) {
+      const token = jwt.sign(
+        { admin_id: admin.admin_id, admin_user: admin.admin_user },
+        process.env.JWT_SECRET,
+        { expiresIn: "12h" }
+      );
+
+      return res.json({
+        message: "Login successful (2FA disabled)",
+        token,
+        admin: { id: admin.admin_id, username: admin.admin_user },
+      });
+    }
+
+    // 🔐 If 2FA ENABLED → Generate code
     const code = crypto.randomInt(100000, 999999).toString();
 
-    // Save 2FA code & expiry (UTC)
     await db.execute(
       "UPDATE admin SET two_fa_code = ?, two_fa_expires = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 5 MINUTE) WHERE admin_id = ?",
       [code, admin.admin_id]
     );
 
-    // Send email
     const msg = {
       to: admin.email,
       from: process.env.EMAIL_FROM,
-      subject: "🔒 CTU Enrollment 2FA Code",
-      html: `
-        <h3>Hello ${admin.admin_user}</h3>
-        <p>Your 2FA code is:</p>
-        <h1>${code}</h1>
-        <p>Valid for 5 minutes.</p>
-      `
+      subject: "🔐 Admin 2FA Code - Online Enrollment",
+      html: `<h2>Your Login Verification Code</h2><h1>${code}</h1><p>This code expires in 5 minutes.</p>`
     };
 
     await sgMail.send(msg);
 
-    // Return admin_id to frontend
     res.json({
       require2FA: true,
-      message: "2FA code sent to your email.",
-      admin_id: admin.admin_id
+      message: "A verification code has been sent to your email",
+      admin_id: admin.admin_id,
     });
+
   } catch (err) {
     console.error("Admin login error:", err);
     res.status(500).json({ error: "Failed to login" });
   }
 };
+
 
 // --------------------
 // Step 2: Verify 2FA
@@ -166,6 +176,79 @@ exports.resend2FA = async (req, res) => {
     res.status(500).json({ error: "Failed to resend 2FA code" });
   }
 };
+
+exports.updateTwoFAStatus = async (req, res) => {
+  try {
+    const { admin_id, is_2fa_enabled } = req.body;
+
+    // Validate input
+    if (admin_id === undefined || is_2fa_enabled === undefined) {
+      return res.status(400).json({ error: "admin_id and is_2fa_enabled are required" });
+    }
+
+    await db.execute(
+      "UPDATE admin SET is_2fa_enabled = ? WHERE admin_id = ?",
+      [is_2fa_enabled ? 1 : 0, admin_id]
+    );
+
+    res.json({ message: `2FA ${is_2fa_enabled ? "Enabled" : "Disabled"} successfully` });
+  } catch (err) {
+    console.error("Update 2FA status error:", err);
+    res.status(500).json({ error: "Failed to update 2FA setting" });
+  }
+};
+
+
+exports.updateAdminAccount = async (req, res) => {
+  try {
+    const { admin_id, admin_user, new_password } = req.body;
+
+    // Validate input
+    if (!admin_id || !admin_user) {
+      return res.status(400).json({ error: "admin_id and admin_user are required" });
+    }
+
+    let sql = `UPDATE admin SET admin_user = ?`;
+    const values = [admin_user];
+
+    if (new_password && new_password.trim() !== "") {
+      const hashedPass = await bcrypt.hash(new_password, 10);
+      sql += `, admin_pass = ?`;
+      values.push(hashedPass);
+    }
+
+    sql += ` WHERE admin_id = ?`;
+    values.push(admin_id);
+
+    await db.execute(sql, values);
+
+    res.json({ message: "Admin account updated successfully" });
+  } catch (err) {
+    console.error("Update admin account error:", err);
+    res.status(500).json({ error: "Failed to update admin account" });
+  }
+};
+
+exports.getAdminInfo = async (req, res) => {
+  try {
+    const { admin_id } = req.params;
+
+    if (!admin_id) return res.status(400).json({ error: "Admin ID is required" });
+
+    const [rows] = await db.execute(
+      "SELECT admin_id, admin_user, is_2fa_enabled FROM admin WHERE admin_id = ?",
+      [admin_id]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ error: "Admin not found" });
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Get admin info error:", err);
+    res.status(500).json({ error: "Failed to fetch admin info" });
+  }
+};
+
 
 /* -------------------------------------------------------------------------- */
 /*                             🎓 STUDENT HANDLERS                            */
@@ -521,60 +604,6 @@ exports.deleteStudent = async (req, res) => {
   }
 };
 
-
-// -----------------------------
-// 📤 EXPORT ENROLLED STUDENTS TO CSV (FILTERED)
-// -----------------------------
-// POST /api/admin/login
-exports.adminLogin = async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-
-    try {
-        // 1) Try admin table (admin_user)
-        const [admins] = await db.execute('SELECT admin_id, admin_user, admin_pass FROM admin WHERE admin_user = ?', [username]);
-
-        if (admins.length > 0) {
-            const admin = admins[0];
-            const isMatch = await bcrypt.compare(password, admin.admin_pass);
-            if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
-
-            const userRole = 'admin';
-            const payload = { id: admin.admin_id, role: userRole, user: admin.admin_user };
-            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-            return res.json({ token, userRole, user: { id: admin.admin_id, username: admin.admin_user } });
-        }
-
-        // 2) Try faculties table (use email as login identifier)
-        const [facRows] = await db.execute('SELECT faculty_id, email, password, first_name, last_name FROM faculties WHERE email = ?', [username]);
-
-        if (facRows.length > 0) {
-            const fac = facRows[0];
-            if (!fac.password) {
-                // If faculty accounts do not have password column populated, return clear error
-                return res.status(401).json({ error: 'Faculty account requires password setup' });
-            }
-            const isMatch = await bcrypt.compare(password, fac.password);
-            if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
-
-            const userRole = 'faculty';
-            const payload = { id: fac.faculty_id, role: userRole, user: fac.email };
-            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-            return res.json({
-                token,
-                userRole,
-                user: { id: fac.faculty_id, email: fac.email, name: `${fac.first_name} ${fac.last_name}` }
-            });
-        }
-
-        return res.status(401).json({ error: 'Invalid credentials' });
-    } catch (err) {
-        console.error('Login error:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-};
 
 
 
