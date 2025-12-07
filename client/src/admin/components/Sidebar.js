@@ -23,15 +23,15 @@ export default function Sidebar({
       ? [
           { key: "enrollment", label: "Enrollment" },
           { key: "faculty", label: "Faculty" },
-          { key: "settings", label: "Settings" },
         ]
       : []),
+    { key: "settings", label: "Settings" },
   ];
 
   return (
     <aside className={`admin-sidebar ${isSidebarOpen ? "show" : ""}`}>
       <h2>
-        Welcome {isAdmin ? adminInfo?.admin_user : currentUser?.username || "Faculty Member"}
+        Welcome {isAdmin ? adminInfo?.admin_user : currentUser?.first_name || "Faculty"}
       </h2>
 
       <nav>

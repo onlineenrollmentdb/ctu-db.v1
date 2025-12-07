@@ -518,7 +518,7 @@ Modern Tables with Animations
 .actions-cell .actions-menu {
   position: absolute;
   top: 50%;
-  left: 50%;
+  left: 70%;
   display: flex;
   gap: 6px;
   opacity: 0;
@@ -537,7 +537,7 @@ Modern Tables with Animations
 .actions-cell .actions-menu button[data-tooltip]:hover::after {
   content: attr(data-tooltip);
   position: absolute;
-  top: -28px;
+  top: -18px;
   left: 50%;
   transform: translateX(-50%);
   background: #111;
@@ -546,7 +546,6 @@ Modern Tables with Animations
   border-radius: 4px;
   font-size: 12px;
   white-space: nowrap;
-  z-index: 20;
 }
 .actions-cell:hover .actions-menu {
   opacity: 1;

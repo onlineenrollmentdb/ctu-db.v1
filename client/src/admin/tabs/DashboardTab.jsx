@@ -64,7 +64,7 @@
           if (valA > valB) return sortDirection === "asc" ? 1 : -1;
           return 0;
         });
-      }, [filteredStudents, sortField, sortDirection]);
+    }, [filteredStudents, sortField, sortDirection]);
 
       const totalPages = Math.ceil(sortedStudents.length / studentsPerPage);
       const startIndex = (currentPage - 1) * studentsPerPage;

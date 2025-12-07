@@ -4,6 +4,7 @@ const controller = require('../controllers/enrollmentsController');
 
 router.post('/', controller.enrollStudent);
 router.get('/status/:student_id', controller.getEnrollmentStatus);
+router.post('/status/bulk', controller.getEnrollmentStatusBulk);
 router.get('/grades/:student_id', controller.getStudentGrades);
 
 router.put('/status/:student_id', controller.updateEnrollmentStatus);

@@ -292,6 +292,8 @@ export default function AdminDashboard() {
             <StudentsTab
               settings={settings}
               students={students}
+              currentUser={user}
+              role={userRole}
               setStudents={setStudents}
               fetchAllStudents={fetchAllStudents}
               programs={programs}
@@ -302,14 +304,16 @@ export default function AdminDashboard() {
               onViewDetails={handleSelectStudentFromDashboard}
             />
           )}
-          {activeTab === "settings" && userRole === "admin" && (
+          {activeTab === "settings" && (
             <SettingsTab
               settings={settings}
               setSettings={setSettings}
               fetchSettings={fetchSettings}
               loading={loading}
               setLoading={setLoading}
-              admin={admin}
+              currentUser={user}
+              role={userRole}
+              admin={admin}   
               setAdmin={setAdmin}
             />
           )}

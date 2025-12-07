@@ -137,6 +137,42 @@ exports.getEnrollmentStatus = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch enrollment status" });
   }
 };
+// Fetch enrollment status for multiple students at once
+exports.getEnrollmentStatusBulk = async (req, res) => {
+  const { student_ids, semester, academic_year } = req.body;
+
+  if (!Array.isArray(student_ids) || !semester || !academic_year) {
+    return res.status(400).json({ error: "student_ids (array), semester, and academic_year are required." });
+  }
+
+  try {
+    // Generate placeholders for IN clause
+    const placeholders = student_ids.map(() => "?").join(", ");
+
+    const [rows] = await db.execute(
+      `SELECT student_id, enrollment_id, enrollment_status
+       FROM enrollments
+       WHERE student_id IN (${placeholders}) AND semester = ? AND academic_year = ?`,
+      [...student_ids, semester, academic_year]
+    );
+
+    // Build result map
+    const records = {};
+    student_ids.forEach((id) => {
+      const row = rows.find(r => r.student_id === id);
+      records[id] = {
+        enrollment_status: row?.enrollment_status || 0,
+        enrollment_id: row?.enrollment_id || null,
+      };
+    });
+
+    res.json(records);
+
+  } catch (err) {
+    console.error("[EnrollStatusBulk] Error fetching enrollment:", err);
+    res.status(500).json({ error: "Failed to fetch enrollment status in bulk" });
+  }
+};
 
 // ✅ Update enrollment status manually
 exports.updateEnrollmentStatus = async (req, res) => {

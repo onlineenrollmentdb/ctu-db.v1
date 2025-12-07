@@ -84,7 +84,9 @@ h3 {
   flex-direction: column;
   gap: 2rem;
 }
-
+.middle-panel .btn{
+  margin: 0.5rem 0;
+}
 /* ============================= */
 /* 🔹 Dashboard Cards (Overview) */
 /* ============================= */

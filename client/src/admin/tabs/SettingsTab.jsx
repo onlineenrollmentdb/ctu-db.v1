@@ -18,15 +18,57 @@ export default function SettingsTab({
   fetchSettings,
   loading,
   setLoading,
+  currentUser,
+  role,
   admin,
   setAdmin,
 }) {
+  const isAdmin = role === "admin";
+  const isFaculty = role === "faculty";
+
   const [editMode, setEditMode] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [previewSettings, setPreviewSettings] = useState(null);
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const { addToast } = useToast();
+
+  // ============================ FACULTY PROFILE FORM STATE ============================
+  const [facultyEditMode, setFacultyEditMode] = useState(false);
+
+  const [facultyForm, setFacultyForm] = useState({
+    first_name: currentUser?.first_name || "",
+    last_name: currentUser?.last_name || "",
+    email: currentUser?.email || "",
+    faculty_role: currentUser?.role || "",
+  });
+
+  const handleFacultyChange = (key, value) => {
+    setFacultyForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveFaculty = async () => {
+    try {
+      setLoading(true);
+      await API.put(`/faculty/update-profile`, {
+        faculty_id: currentUser.faculty_id,
+        ...facultyForm,
+      });
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify({ ...currentUser, ...facultyForm })
+      );
+
+      addToast("Profile updated successfully!", "success");
+      setFacultyEditMode(false);
+    } catch (err) {
+      console.error(err);
+      addToast("Error updating profile.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ======== SETTINGS HANDLERS ========
   const handleChange = (key, date) => {
@@ -75,8 +117,6 @@ export default function SettingsTab({
           .toISOString()
           .split("T")[0],
         current_academic_year: settings.current_academic_year,
-
-        // NEW SETTINGS
         enable_2fa: settings.enable_2fa ? 1 : 0,
         admin_username: settings.admin_username,
       };
@@ -122,169 +162,253 @@ export default function SettingsTab({
   if (!settings) return <p>Loading settings...</p>;
 
   return (
-    <div className="settings-container">
-      <div className="header-sub">
-        <h1 className="header-main">SETTINGS MANAGEMENT</h1>
-      </div>
+    <>
+      <div className="settings-container">
+        <div className="header-sub">
+          <h1 className="header-main">SETTINGS MANAGEMENT</h1>
+        </div>
 
-      {/* ===== SEMESTERS + ACTIONS ===== */}
-      <div className="settings-grid">
-        <div className="settings-semesters">
-          {["first_sem", "second_sem", "summer"].map((sem) => (
-            <div key={sem} className="settings-section minimalist-section">
-              <h3>
-                {sem === "first_sem"
-                  ? "1st Semester"
-                  : sem === "second_sem"
-                  ? "2nd Semester"
-                  : "Summer"}
-              </h3>
-              <div className="settings-row" style={{ gap: "1rem" }}>
-                {sem !== "summer" && (
-                  <div style={{ marginBottom: "1rem" }}>
-                    <label>
-                      <h2>Enrollment Date</h2>
-                    </label>
-                    {editMode ? (
-                      <div style={{ display: "flex", gap: "1rem" }}>
-                        {renderPicker(`${sem}_enrollment_start`, "enrollment")}
-                        {renderPicker(`${sem}_enrollment_end`, "enrollment")}
-                      </div>
-                    ) : (
-                      <h6 style={{ margin: 0 }}>
-                        {formatMonthDay(settings[`${sem}_enrollment_start`])} -{" "}
-                        {formatMonthDay(settings[`${sem}_enrollment_end`])}
-                      </h6>
-                    )}
-                  </div>
-                )}
-                <div style={{ marginBottom: "1rem" }}>
-                  <label>
-                    <h2>Semester Date</h2>
-                  </label>
-                  {editMode ? (
-                    <div style={{ display: "flex", gap: "1rem" }}>
-                      {renderPicker(`${sem}_start`, "semester")}
-                      {renderPicker(`${sem}_end`, "semester")}
-                    </div>
-                  ) : (
-                    <h6 style={{ margin: 0 }}>
-                      {formatMonthDay(
-                        sem === "summer" ? settings.summer_start : settings[`${sem}_start`]
-                      )}{" "}
-                      -{" "}
-                      {formatMonthDay(
-                        sem === "summer" ? settings.summer_end : settings[`${sem}_end`]
+        {/* ================= ADMIN SETTINGS ================= */}
+        {isAdmin && (
+          <>
+            <div className="settings-grid">
+              <div className="settings-semesters">
+                {["first_sem", "second_sem", "summer"].map((sem) => (
+                  <div key={sem} className="settings-section minimalist-section">
+                    <h3>
+                      {sem === "first_sem"
+                        ? "1st Semester"
+                        : sem === "second_sem"
+                        ? "2nd Semester"
+                        : "Summer"}
+                    </h3>
+                    <div className="settings-row" style={{ gap: "1rem" }}>
+                      {sem !== "summer" && (
+                        <div style={{ marginBottom: "1rem" }}>
+                          <label>
+                            <h2>Enrollment Date</h2>
+                          </label>
+                          {editMode ? (
+                            <div style={{ display: "flex", gap: "1rem" }}>
+                              {renderPicker(`${sem}_enrollment_start`, "enrollment")}
+                              {renderPicker(`${sem}_enrollment_end`, "enrollment")}
+                            </div>
+                          ) : (
+                            <h6 style={{ margin: 0 }}>
+                              {formatMonthDay(settings[`${sem}_enrollment_start`])} -{" "}
+                              {formatMonthDay(settings[`${sem}_enrollment_end`])}
+                            </h6>
+                          )}
+                        </div>
                       )}
-                    </h6>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label>
+                          <h2>Semester Date</h2>
+                        </label>
+                        {editMode ? (
+                          <div style={{ display: "flex", gap: "1rem" }}>
+                            {renderPicker(`${sem}_start`, "semester")}
+                            {renderPicker(`${sem}_end`, "semester")}
+                          </div>
+                        ) : (
+                          <h6 style={{ margin: 0 }}>
+                            {formatMonthDay(
+                              sem === "summer"
+                                ? settings.summer_start
+                                : settings[`${sem}_start`]
+                            )}{" "}
+                            -{" "}
+                            {formatMonthDay(
+                              sem === "summer"
+                                ? settings.summer_end
+                                : settings[`${sem}_end`]
+                            )}
+                          </h6>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="settings-actions" style={{ marginTop: "1rem" }}>
+                <div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      if (editMode) setShowConfirmModal(true);
+                      else setEditMode(true);
+                    }}
+                  >
+                    {editMode ? "Save Settings" : "Edit Settings"}
+                  </button>
+
+                  {editMode && (
+                    <button
+                      className="btn btn-cancel"
+                      onClick={() => {
+                        fetchSettings();
+                        setEditMode(false);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+
+                  {editMode && (
+                    <button
+                      className="btn btn-edit"
+                      onClick={() => {
+                        setPreviewSettings({ ...settings });
+                        setShowShiftModal(true);
+                      }}
+                    >
+                      Shift Semester
+                    </button>
                   )}
                 </div>
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* ===== ACTIONS PANEL ===== */}
-        <div className="settings-actions" style={{ marginTop: "1rem" }}>
-          <div>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                if (editMode) setShowConfirmModal(true);
-                else setEditMode(true);
-              }}
-            >
-              {editMode ? "Save Settings" : "Edit Settings"}
-            </button>
+            <div className="settings-admin-panel minimalist-section">
+              <h2 style={{ marginTop: "10px" }}>⚙️ Admin Account Security</h2>
 
-            {editMode && (
-              <button
-                className="btn btn-cancel"
-                onClick={() => {
-                  fetchSettings();
-                  setEditMode(false);
-                }}
-              >
-                Cancel
-              </button>
-            )}
+              <div className="toggle-row">
+                <label>Enable 2FA Verification</label>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={admin?.is_2fa_enabled === 1}
+                    onChange={async () => {
+                      if (!admin?.admin_id) return;
+                      const newVal = admin.is_2fa_enabled === 1 ? 0 : 1;
+                      try {
+                        setLoading(true);
+                        await API.put("/admin/twofa/update", {
+                          admin_id: admin.admin_id,
+                          is_2fa_enabled: newVal,
+                        });
+                        setAdmin((prev) => ({ ...prev, is_2fa_enabled: newVal }));
+                        setSettings((prev) => ({ ...prev, is_2fa_enabled: newVal }));
+                        addToast(
+                          `Two-factor authentication ${newVal ? "Enabled" : "Disabled"}`,
+                          "success"
+                        );
+                      } catch (err) {
+                        console.error(err);
+                        addToast("Error updating 2FA setting", "error");
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                  />
+                  <span className="slider round"></span>
+                </label>
+              </div>
 
-            {editMode && (
-              <button
-                className="btn btn-edit"
-                onClick={() => {
-                  setPreviewSettings({ ...settings });
-                  setShowShiftModal(true);
-                }}
-              >
-                Shift Semester
-              </button>
+              <div style={{ marginTop: "10px" }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setShowAdminModal(true)}
+                >
+                  Edit Admin Account
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ================= FACULTY PROFILE DISPLAY THEN EDIT ================= */}
+        {isFaculty && (
+          <div className="settings-admin-panel minimalist-section">
+            <h2 style={{ marginTop: "10px" }}>👤 Faculty Profile</h2>
+
+            {!facultyEditMode ? (
+              <>
+                <p><b>First Name:</b> {facultyForm.first_name}</p>
+                <p><b>Last Name:</b> {facultyForm.last_name}</p>
+                <p><b>Email:</b> {facultyForm.email}</p>
+                <p><b>Role:</b> {facultyForm.faculty_role}</p>
+
+                <button
+                  className="btn btn-primary"
+                  style={{ marginTop: "10px" }}
+                  onClick={() => setFacultyEditMode(true)}
+                >
+                  Edit Profile
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="profile-input-row">
+                  <label>First Name</label>
+                  <input
+                    type="text"
+                    value={facultyForm.first_name}
+                    onChange={(e) => handleFacultyChange("first_name", e.target.value)}
+                  />
+                </div>
+
+                <div className="profile-input-row">
+                  <label>Last Name</label>
+                  <input
+                    type="text"
+                    value={facultyForm.last_name}
+                    onChange={(e) => handleFacultyChange("last_name", e.target.value)}
+                  />
+                </div>
+
+                <div className="profile-input-row">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={facultyForm.email}
+                    onChange={(e) => handleFacultyChange("email", e.target.value)}
+                  />
+                </div>
+
+                <div className="profile-input-row">
+                  <label>Role</label>
+                  <input
+                    type="text"
+                    value={facultyForm.faculty_role}
+                    disabled
+                  />
+                </div>
+
+                <button
+                  className="btn btn-primary"
+                  style={{ marginTop: "10px", marginRight: "10px" }}
+                  onClick={handleSaveFaculty}
+                >
+                  Save
+                </button>
+
+                <button
+                  className="btn btn-cancel"
+                  style={{ marginTop: "10px" }}
+                  onClick={() => setFacultyEditMode(false)}
+                >
+                  Cancel
+                </button>
+              </>
             )}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* ===== ADMIN PANEL ===== */}
-      <div className="settings-admin-panel minimalist-section">
-        <h2 style={{ marginTop: "10px" }}>⚙️ Admin Account Security</h2>
-
-        {/* Toggle 2FA */}
-        <div className="toggle-row">
-          <label>Enable 2FA Verification</label>
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={admin?.is_2fa_enabled === 1}
-              onChange={async () => {
-                if (!admin?.admin_id) return;
-                const newVal = admin.is_2fa_enabled === 1 ? 0 : 1;
-                try {
-                  setLoading(true);
-                  await API.put("/admin/twofa/update", {
-                    admin_id: admin.admin_id,
-                    is_2fa_enabled: newVal,
-                  });
-                  setAdmin((prev) => ({ ...prev, is_2fa_enabled: newVal }));
-                  setSettings((prev) => ({ ...prev, is_2fa_enabled: newVal }));
-                  addToast(
-                    `Two-factor authentication ${newVal ? "Enabled" : "Disabled"}`,
-                    "success"
-                  );
-                } catch (err) {
-                  console.error(err);
-                  addToast("Error updating 2FA setting", "error");
-                } finally {
-                  setLoading(false);
-                }
-              }}
-            />
-            <span className="slider round"></span>
-          </label>
-        </div>
-
-        {/* Edit Admin Account Button */}
-        <div style={{ marginTop: "10px" }}>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowAdminModal(true)}
-          >
-            Edit Admin Account
-          </button>
-        </div>
-      </div>
-
-      {/* ===== CONFIRM SAVE MODAL ===== */}
+      {/* CONFIRM SAVE SETTINGS */}
       {showConfirmModal && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h5>Confirm Save</h5>
             <p>This action will overwrite important academic settings. Are you sure?</p>
             <div className="mt-3">
-              <button className="btn btn-success me-2" onClick={handleSave}>
+              <button className="btn btn-primary" onClick={handleSave}>
                 Yes, Save
               </button>
               <button
-                className="btn btn-secondary me-2 mt-2"
+                className="btn btn-cancel"
                 onClick={() => setShowConfirmModal(false)}
               >
                 Cancel
@@ -294,7 +418,7 @@ export default function SettingsTab({
         </div>
       )}
 
-      {/* ===== SHIFT SEMESTER MODAL ===== */}
+      {/* SHIFT SEMESTER MODAL */}
       {showShiftModal && previewSettings && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -325,7 +449,7 @@ export default function SettingsTab({
 
             <div className="mt-3">
               <button
-                className="btn btn-success me-2"
+                className="btn btn-primary"
                 onClick={() => {
                   setSettings(previewSettings);
                   setPreviewSettings(null);
@@ -335,7 +459,7 @@ export default function SettingsTab({
                 Apply
               </button>
               <button
-                className="btn btn-secondary me-2 mt-2"
+                className="btn btn-cancel"
                 onClick={() => setShowShiftModal(false)}
               >
                 Cancel
@@ -345,7 +469,7 @@ export default function SettingsTab({
         </div>
       )}
 
-      {/* ===== ADMIN ACCOUNT MODAL ===== */}
+      {/* ADMIN ACCOUNT MODAL */}
       {showAdminModal && (
         <AdminAccountModal
           admin={admin}
@@ -356,7 +480,7 @@ export default function SettingsTab({
           handleAdminUpdate={handleAdminUpdate}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -370,7 +494,6 @@ function AdminAccountModal({ admin, setAdmin, show, onClose, addToast, handleAdm
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading] = useState(false);
 
-  // Password validation
   React.useEffect(() => {
     const errors = [];
     if (password) {
@@ -379,7 +502,8 @@ function AdminAccountModal({ admin, setAdmin, show, onClose, addToast, handleAdm
       if (!/[a-z]/.test(password)) errors.push("At least one lowercase letter");
       if (!/\d/.test(password)) errors.push("At least one number");
       if (!/[\W_]/.test(password)) errors.push("At least one special character");
-      if (confirmPassword && password !== confirmPassword) errors.push("Passwords do not match");
+      if (confirmPassword && password !== confirmPassword)
+        errors.push("Passwords do not match");
     }
     setPasswordErrors(errors);
   }, [password, confirmPassword]);
@@ -440,7 +564,9 @@ function AdminAccountModal({ admin, setAdmin, show, onClose, addToast, handleAdm
             ))}
           </ul>
         )}
-        {password && passwordErrors.length === 0 && <p className="valid">✔ Password looks good</p>}
+        {password && passwordErrors.length === 0 && (
+          <p className="valid">✔ Password looks good</p>
+        )}
 
         <div className="modal-buttons">
           <button className="btn btn-primary" onClick={handleSave} disabled={loading}>

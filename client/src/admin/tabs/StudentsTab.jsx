@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useToast } from "../../context/ToastContext";
-import { useAuth } from "../../context/AuthContext";
 import API from "../../api/api";
 import { CustomSelect } from "../../components/customSelect";
 
 export default function StudentsTab({
+  settings,
   students,
   setStudents,
+  currentUser,
+  role,
   programs,
   fetchAllStudents,
   setActiveTab,
@@ -14,8 +16,8 @@ export default function StudentsTab({
   fetchPrograms
 }) {
   const { addToast } = useToast();
-  const { user, role } = useAuth();
   const isAdmin = role === "admin";
+  const isDean = currentUser?.role === "dean"
 
   // UI state
   const [expandedProgram, setExpandedProgram] = useState(null);
@@ -29,7 +31,9 @@ export default function StudentsTab({
   const [programCode, setProgramCode] = useState("");
   const [programName, setProgramName] = useState("");
   const [departmentId, setDepartmentId] = useState("");
-
+  const [clearanceRecords, setClearanceRecords] = useState({});
+  const [sortField, setSortField] = useState("first_name");
+  const [sortDirection, setSortDirection] = useState("asc");
 
   // Modal / form states
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,25 +61,96 @@ export default function StudentsTab({
   const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 10;
   const years = [1, 2, 3, 4];
+
   const formatYear = (year) => {
     if (year === 1) return "1st";
     if (year === 2) return "2nd";
     if (year === 3) return "3rd";
     return `${year}th`;
   };
+
+  // -----------------------
+  // Sorting
+  // -----------------------
+  const sortedStudents = useMemo(() => {
+    return [...filteredStudents].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+
+      if (typeof valA === "string") valA = valA.toLowerCase();
+      if (typeof valB === "string") valB = valB.toLowerCase();
+
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredStudents, sortField, sortDirection]);
+
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const startIndex = (currentPage - 1) * studentsPerPage;
+  const paginatedStudents = sortedStudents.slice(startIndex, startIndex + studentsPerPage);
+
+  // -----------------------
+  // Fetch bulk enrollment / clearance status
+  // -----------------------
+  useEffect(() => {
+    if (!students || students.length === 0) return;
+
+    let isMounted = true; // Prevent state update if component unmounts
+
+    const fetchBulkClearance = async () => {
+      try {
+        // Get all student IDs
+        const student_ids = students.map((s) => s.student_id);
+        if (student_ids.length === 0) return;
+
+        // Call the bulk API
+        const res = await API.post("/enrollments/status/bulk", {
+          student_ids,
+          semester: settings.current_semester,
+          academic_year: settings.current_academic_year,
+        });
+
+        if (!isMounted) return;
+
+        // Transform API response to include 'cleared' field
+        const formattedData = Object.fromEntries(
+          Object.entries(res.data).map(([student_id, rec]) => [
+            student_id,
+            {
+              ...rec,
+              cleared: rec.enrollment_id !== null, // consider enrollment_id as cleared
+            },
+          ])
+        );
+
+        setClearanceRecords(formattedData);
+      } catch (err) {
+        console.error("Failed to fetch bulk clearance", err);
+        if (isMounted) addToast("Failed to fetch clearance ❌", "error");
+      }
+    };
+
+    fetchBulkClearance();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [students, settings.current_semester, settings.current_academic_year, addToast]);
+
   // -----------------------
   // Fetch faculty subjects
   // -----------------------
   useEffect(() => {
     if (!isAdmin) {
-      API.get(`/faculty/${user.faculty_id}/subjects`)
+      API.get(`/faculty/${currentUser.faculty_id}/subjects`)
         .then(({ data }) => {
           setFacultySubjects(data || []);
           console.log("Fetched faculty subjects:", data);
         })
-        .catch((err) => console.error("Failed to fetch faculty subjects:", err))
+        .catch((err) => console.error("Failed to fetch faculty subjects:", err));
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, currentUser]);
 
   // -----------------------
   // Filter students
@@ -94,6 +169,30 @@ export default function StudentsTab({
       setFilteredStudents([]);
     }
   }, [selectedSection, expandedProgram, expandedYear, students]);
+
+  // -----------------------
+  // Prepare grades records
+  // -----------------------
+  const prepareGradesRecords = useCallback(async (subject) => {
+    if (!subject) {
+      setGradesRecords([]);
+      return;
+    }
+    const records = await Promise.all(
+      filteredStudents.map(async (stu) => {
+        const res = await API.get(`/grades/student/${stu.student_id}`);
+        const studentRecord = (res.data.records || []).find(
+          (r) => r.subject_section === subject.subject_section
+        );
+        return {
+          student_id: stu.student_id,
+          subject_section: subject.subject_section,
+          grade: studentRecord?.grade ?? "",
+        };
+      })
+    );
+    setGradesRecords(records);
+  }, [filteredStudents]);
 
   // -----------------------
   // Fetch available subjects
@@ -118,13 +217,11 @@ export default function StudentsTab({
         })
         .catch(console.error);
     } else {
-      // Faculty subjects
       const subjects = (facultySubjects || []).filter((fs) => {
         const sections = (fs.section || "").toString().split("/").map((x) => x.trim());
-        const matchesSection = sections.includes(selectedSection);
-        const matchesYear = Number(fs.year_level) === Number(expandedYear);
-        const matchesProgram = fs.program_id ? fs.program_id === expandedProgram : true; // allow undefined program_id
-        return matchesSection && matchesYear && matchesProgram;
+        return sections.includes(selectedSection) &&
+          Number(fs.year_level) === Number(expandedYear) &&
+          (fs.program_id ? fs.program_id === expandedProgram : true);
       });
       setAvailableSubjects(subjects);
       setSelectedSubject(subjects[0] || null);
@@ -135,8 +232,7 @@ export default function StudentsTab({
         setGradesRecords([]);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSection, expandedProgram, expandedYear, facultySubjects, isAdmin]);
+  }, [selectedSection, expandedProgram, expandedYear, facultySubjects, isAdmin, prepareGradesRecords]);
 
   // -----------------------
   // Fetch grades when selectedSubject changes
@@ -147,8 +243,7 @@ export default function StudentsTab({
       return;
     }
     prepareGradesRecords(selectedSubject).catch(console.error);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSubject, filteredStudents]);
+  }, [selectedSubject, prepareGradesRecords]);
 
   // -----------------------
   // Compute rating
@@ -163,7 +258,7 @@ export default function StudentsTab({
   };
 
   // -----------------------
-  // Helper functions
+  // Helpers
   // -----------------------
   const getProgramCount = (programId) => students.filter((s) => s.program_id === programId).length;
 
@@ -188,78 +283,73 @@ export default function StudentsTab({
     });
   };
 
-  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
-  const startIndex = (currentPage - 1) * studentsPerPage;
-  const paginatedStudents = filteredStudents.slice(startIndex, startIndex + studentsPerPage);
-
   // -----------------------
-  // Header render
+  // Sorting click
   // -----------------------
-  const renderHeader = () => {
-    if (!expandedProgram) return <h1 className="header-main">STUDENT MANAGEMENT</h1>;
-    if (expandedProgram && !selectedSection) {
-      return (
-        <>
-          <h1 className="header-main">STUDENT MANAGEMENT</h1>
-          <h2 className="header-sub">{programs.find((p) => p.program_id === expandedProgram)?.program_code}</h2>
-        </>
-      );
+  const handleSortClick = (field) => {
+    if (sortField === field)
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    else {
+      setSortField(field);
+      setSortDirection("asc");
     }
-    return (
-      <>
-        <h1 className="header-main">STUDENT MANAGEMENT</h1>
-        <h2 className="header-sub">
-          {programs.find((p) => p.program_id === expandedProgram)?.program_code}-{expandedYear}
-          {selectedSection}
-        </h2>
-      </>
-    );
+    setCurrentPage(1);
   };
 
-  const handleViewDetails = (student) => {
-    onViewDetails(student);
+  const handleViewDetails = (student) => onViewDetails(student);
+
+  const toggleClearance = async (student) => {
+    try {
+      const current = clearanceRecords[student.student_id]?.cleared || false;
+
+      // Call your clearance update endpoint
+      const response = await API.put("/clearance/update", {
+        student_id: student.student_id,
+        is_cleared: !current,
+        semester: student.semester || "1",
+        academic_year: student.academic_year || "2025-2026"
+      });
+
+      // Update the UI immediately
+      setClearanceRecords((prev) => ({
+        ...prev,
+        [student.student_id]: {
+          cleared: !current,
+          enrollment_status: response.data.enrollment_status
+        }
+      }));
+
+      addToast(`Clearance ${!current ? "confirmed" : "revoked"} successfully ✅`, "success");
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to update clearance ❌", "error");
+    }
   };
 
-  // -----------------------
-  // Modal helpers
-  // -----------------------
   const openModal = (student = null) => {
     setEditingStudent(student);
     setForm(
       student
         ? { ...student, program_id: student.program_id || "" }
-        : {
-            student_id: "",
-            first_name: "",
-            last_name: "",
-            middle_name: "",
-            year_level: "",
-            section: "",
-            email: "",
-            student_status: "Regular",
-            program_id: "",
-          }
+        : { student_id: "", first_name: "", last_name: "", middle_name: "", year_level: "", section: "", email: "", student_status: "Regular", program_id: "" }
     );
     setModalOpen(true);
   };
+
   const closeModal = () => {
     setModalOpen(false);
     setEditingStudent(null);
   };
+
   const handleChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSave = async () => {
     try {
-      if (!form.program_id) {
-        addToast("Please select a program ❌", "error");
-        return;
-      }
+      if (!form.program_id) { addToast("Please select a program ❌", "error"); return; }
       let response;
       if (editingStudent) {
         response = await API.put(`admin/students/${editingStudent.student_id}`, form);
-        setStudents((prev) =>
-          prev.map((s) => (s.student_id === editingStudent.student_id ? response.data.student : s))
-        );
+        setStudents((prev) => prev.map((s) => s.student_id === editingStudent.student_id ? response.data.student : s));
         addToast("Student updated successfully ✅", "success");
       } else {
         response = await API.post(`admin/students`, form);
@@ -273,25 +363,21 @@ export default function StudentsTab({
     }
   };
 
-  // -----------------------
-  // Delete helpers
-  // -----------------------
   const openDeleteModal = (student) => {
     setDeleteStudent(student);
     setDeleteInputs({ student_id: "", confirm_text: "" });
     setDeleteModalOpen(true);
   };
+
   const closeDeleteModal = () => {
     setDeleteStudent(null);
     setDeleteInputs({ student_id: "", confirm_text: "" });
     setDeleteModalOpen(false);
   };
+
   const handleDeleteConfirm = async () => {
     if (!deleteStudent) return;
-    if (
-      deleteInputs.student_id !== deleteStudent.student_id.toString() ||
-      deleteInputs.confirm_text.toLowerCase() !== "delete"
-    ) {
+    if (deleteInputs.student_id !== deleteStudent.student_id.toString() || deleteInputs.confirm_text.toLowerCase() !== "delete") {
       addToast("Student ID or confirmation text is incorrect ❌", "error");
       return;
     }
@@ -305,52 +391,16 @@ export default function StudentsTab({
     }
   };
 
-  // -----------------------
-  // Grades helpers
-  // -----------------------
-  const prepareGradesRecords = async (subject) => {
-    if (!subject) {
-      setGradesRecords([]);
-      return;
-    }
-    const records = await Promise.all(
-      filteredStudents.map(async (stu) => {
-        const res = await API.get(`/grades/student/${stu.student_id}`);
-        const studentRecord = (res.data.records || []).find(
-          (r) => r.subject_section === subject.subject_section
-        );
-        return {
-          student_id: stu.student_id,
-          subject_section: subject.subject_section,
-          grade: studentRecord?.grade === null || studentRecord?.grade === undefined ? "" : studentRecord?.grade,
-        };
-      })
-    );
-    setGradesRecords(records);
-  };
-
   const handleGradeChange = (student_id, value) => {
-    setGradesRecords((prev) =>
-      prev.map((r) => (r.student_id === student_id ? { ...r, grade: value } : r))
-    );
+    setGradesRecords((prev) => prev.map((r) => (r.student_id === student_id ? { ...r, grade: value } : r)));
   };
 
   const handleSaveGrades = async () => {
-    if (!selectedSubject) {
-      addToast("No subject selected ❌", "error");
-      return;
-    }
+    if (!selectedSubject) { addToast("No subject selected ❌", "error"); return; }
     try {
       await Promise.all(
         gradesRecords.map((rec) =>
-          API.put(`/grades/student/${rec.student_id}`, {
-            records: [
-              {
-                subject_section: rec.subject_section,
-                grade: rec.grade === "" ? null : rec.grade,
-              },
-            ],
-          })
+          API.put(`/grades/student/${rec.student_id}`, { records: [{ subject_section: rec.subject_section, grade: rec.grade === "" ? null : rec.grade }] })
         )
       );
       addToast("Grades saved successfully ✅", "success");
@@ -364,21 +414,29 @@ export default function StudentsTab({
 
   const handleAddProgram = async () => {
     try {
-      const response = await API.post("/programs/add", {
-        program_code: programCode,
-        program_name: programName,
-        department_id: departmentId
-      });
-
+      const response = await API.post("/programs/add", { program_code: programCode, program_name: programName, department_id: departmentId });
       addToast(response.data.message, "success");
       setShowAddProgram(false);
-      fetchPrograms(); // make sure this refreshes UI
+      fetchPrograms();
     } catch (err) {
       addToast(err.response?.data?.error || "Something went wrong", "error");
     }
   };
-
-
+  const renderHeader = () => {
+    if (!expandedProgram) return <h1 className="header-main">STUDENT MANAGEMENT</h1>;
+    if (expandedProgram && !selectedSection) return (
+      <>
+        <h1 className="header-main">STUDENT MANAGEMENT</h1>
+        <h2 className="header-sub">{programs.find((p) => p.program_id === expandedProgram)?.program_code}</h2>
+      </>
+    );
+    return (
+      <>
+        <h1 className="header-main">STUDENT MANAGEMENT</h1>
+        <h2 className="header-sub">{programs.find((p) => p.program_id === expandedProgram)?.program_code}-{expandedYear}{selectedSection}</h2>
+      </>
+    );
+  };
 
   // -----------------------
   // Render
@@ -421,9 +479,11 @@ export default function StudentsTab({
         {!expandedProgram && (
           <>
           {isAdmin && (
-            <button className="btn btn-primary" onClick={() => setShowAddProgram(true)}>
-              Add Program
-            </button>
+            <div className="header">
+              <button className="btn btn-primary" onClick={() => setShowAddProgram(true)}>
+                Add Program
+              </button>
+            </div>
           )}
           <div className="programs-grid">
             {programs.map((program) => (
@@ -446,9 +506,11 @@ export default function StudentsTab({
         {expandedProgram && !selectedSection && (
           <>
             {isAdmin && (
-              <button className="btn btn-primary" onClick={() => openModal()}>
-                Add Student
-              </button>
+              <div className="header">
+                <button className="btn btn-primary" onClick={() => openModal()}>
+                  Add Student
+                </button>
+              </div>
             )}
             <div className="years-grid">
               {years.map((year) => {
@@ -458,22 +520,42 @@ export default function StudentsTab({
                   <div key={year} className="year-card">
                     <h4 className="year-title">{formatYear(year)} Year</h4>
                     <div className="sections-grid">
-                      {sections.map((sec) => (
-                        <div
-                          key={sec.name}
-                          className={`section-card ${sec.hasSubject ? "highlight" : ""}`}
-                          onClick={() => {
-                            setExpandedYear(year);
-                            setSelectedSection(sec.name);
-                            setSelectedSubject(null);
-                            setAvailableSubjects([]);
-                            setGradesRecords([]);
-                          }}
-                        >
-                          <span>{sec.name}</span>
-                          <span>{sec.count} Students</span>
-                        </div>
-                      ))}
+                      {sections.map((sec) => {
+                        const sectionStudents = students.filter(
+                          (s) => s.program_id === expandedProgram && Number(s.year_level) === year && s.section === sec.name
+                        );
+
+                        const clearedCount = sectionStudents.filter(
+                          (s) => clearanceRecords[s.student_id]?.cleared
+                        ).length;
+
+                        const enrolledCount = sectionStudents.filter(
+                          (s) => clearanceRecords[s.student_id]?.enrollment_status === 3
+                        ).length;
+
+                        return (
+                          <div
+                            key={sec.name}
+                            className={`section-card ${sec.hasSubject ? "highlight" : ""}`}
+                            onClick={() => {
+                              setExpandedYear(year);
+                              setSelectedSection(sec.name);
+                              setSelectedSubject(null);
+                              setAvailableSubjects([]);
+                              setGradesRecords([]);
+                            }}
+                          >
+                            <span>{sec.name}</span>
+                            <span>{sec.count} Students</span>
+                            {isAdmin && (
+                              <>
+                                <span className="clear">{clearedCount} Cleared</span>
+                                <span className="enroll">{enrolledCount} Enrolled</span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -485,8 +567,7 @@ export default function StudentsTab({
         {/* Step 3: Students Table */}
         {selectedSection && (
           <div className="students-table">
-            <div className="students-header flex justify-between items-center my-4">
-              {/* Save Grades Button */}
+            <div className="header">
               {!isAdmin && selectedSubject && gradesRecords.length > 0 && (
                 <button className="btn btn-primary" onClick={handleSaveGrades}>
                   Save Grades
@@ -499,10 +580,54 @@ export default function StudentsTab({
                 <table className="modern-table">
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Name</th>
+                      <th
+                        onClick={() => handleSortClick("student_id")}
+                        style={{ cursor: "pointer" }}
+                      >
+                        Student ID{" "}
+                        {sortField === "student_id" && (
+                          <i
+                            className={`bi ${
+                              sortDirection === "asc"
+                                ? "bi-caret-up-fill"
+                                : "bi-caret-down-fill"
+                            }`}
+                          ></i>
+                        )}
+                      </th>
+                      <th
+                        onClick={() => handleSortClick("first_name")}
+                        style={{ cursor: "pointer" }}
+                      >
+                        First Name{" "}
+                        {sortField === "first_name" && (
+                          <i
+                            className={`bi ${
+                              sortDirection === "asc"
+                                ? "bi-caret-up-fill"
+                                : "bi-caret-down-fill"
+                            }`}
+                          ></i>
+                        )}
+                      </th>
+                      <th
+                        onClick={() => handleSortClick("last_name")}
+                        style={{ cursor: "pointer" }}
+                      >
+                        Last Name{" "}
+                        {sortField === "last_name" && (
+                          <i
+                            className={`bi ${
+                              sortDirection === "asc"
+                                ? "bi-caret-up-fill"
+                                : "bi-caret-down-fill"
+                            }`}
+                          ></i>
+                        )}
+                      </th>
                       <th>Email</th>
-                      <th>Status</th>
+                      <th>Student Status</th>
+                      <th>Enrollment Status</th>
                       {!isAdmin && availableSubjects.length > 0 && <th>Grade</th>}
                       {!isAdmin && availableSubjects.length > 0 && <th>Rating</th>}
                       <th>Actions</th>
@@ -513,12 +638,17 @@ export default function StudentsTab({
                       const foundGrade = gradesRecords.find((r) => r.student_id === s.student_id);
                       const currentGrade = foundGrade ? foundGrade.grade : "";
                       const rating = computeRating(currentGrade);
+
+                      const clearance = clearanceRecords[s.student_id]?.cleared || false;
+
                       return (
                         <tr key={s.student_id}>
                           <td>{s.student_id}</td>
-                          <td>{`${s.first_name} ${s.last_name}`}</td>
+                          <td>{s.first_name}</td>
+                          <td>{s.last_name}</td>
                           <td>{s.email}</td>
                           <td>{s.student_status}</td>
+                          <td>{clearance ? "Cleared" : "Not Cleared"}</td>
                           {!isAdmin && availableSubjects.length > 0 && (
                             <td>
                               <input
@@ -540,14 +670,26 @@ export default function StudentsTab({
                               <button onClick={() => handleViewDetails(s)} data-tooltip="View">
                                 <i className="bi bi-eye"></i>
                               </button>
-                              {isAdmin && (
+                              {(isAdmin || isDean) && (
                                 <>
-                                <button onClick={() => openModal(s)} data-tooltip="Edit">
-                                  <i className="bi bi-pencil-square"></i>
-                                </button>
-                                <button onClick={() => openDeleteModal(s)} data-tooltip="Delete">
-                                  <i className="bi bi-trash"></i>
-                                </button>
+                                  <button onClick={() => openModal(s)} data-tooltip="Edit">
+                                    <i className="bi bi-pencil-square"></i>
+                                  </button>
+                                  {isAdmin &&(
+                                    <button onClick={() => openDeleteModal(s)} data-tooltip="Delete">
+                                      <i className="bi bi-trash"></i>
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => toggleClearance(s)}
+                                    data-tooltip={clearance ? "Revoke Clearance" : "Confirm Clearance"}
+                                  >
+                                    {clearance ? (
+                                      <i className="bi bi-x-circle text-red-500"></i>
+                                    ) : (
+                                      <i className="bi bi-check-circle text-green-500"></i>
+                                    )}
+                                  </button>
                                 </>
                               )}
                             </div>
@@ -561,6 +703,7 @@ export default function StudentsTab({
                 <p>No students found for this selection.</p>
               )}
             </div>
+
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="pagination">
