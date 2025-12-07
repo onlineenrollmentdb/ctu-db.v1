@@ -2,24 +2,38 @@ import React, { useState, useEffect } from "react";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";
 import API from "../../api/api";
-import AdminHeaderControls from "../components/AdminHeaderControls";
 import { CustomSelect } from "../../components/customSelect";
 
 export default function StudentsTab({
-  settings,
   students,
   setStudents,
-  fetchAllStudents,
   programs,
-  fetchPrograms,
+  fetchAllStudents,
+  setActiveTab,
+  onViewDetails,
+  fetchPrograms
 }) {
   const { addToast } = useToast();
-  const { role: userRole } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin";
 
-  const [loading, setLoading] = useState(false);
+  // UI state
+  const [expandedProgram, setExpandedProgram] = useState(null);
+  const [expandedYear, setExpandedYear] = useState(null);
+  const [selectedSection, setSelectedSection] = useState(null);
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [facultySubjects, setFacultySubjects] = useState([]);
+  const [showAddProgram, setShowAddProgram] = useState(false);
+  const [programCode, setProgramCode] = useState("");
+  const [programName, setProgramName] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+
+
+  // Modal / form states
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
-
   const [form, setForm] = useState({
     student_id: "",
     first_name: "",
@@ -32,57 +46,183 @@ export default function StudentsTab({
     program_id: "",
   });
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [programFilter, setProgramFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [filterYear, setYearFilter] = useState("");
-  const [filterSection, setSectionFilter] = useState("");
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const studentsPerPage = 10;
-
-  // Delete modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteStudent, setDeleteStudent] = useState(null);
   const [deleteInputs, setDeleteInputs] = useState({ student_id: "", confirm_text: "" });
 
+  // Grades state
+  const [gradesRecords, setGradesRecords] = useState([]);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 10;
+  const years = [1, 2, 3, 4];
+  const formatYear = (year) => {
+    if (year === 1) return "1st";
+    if (year === 2) return "2nd";
+    if (year === 3) return "3rd";
+    return `${year}th`;
+  };
+  // -----------------------
+  // Fetch faculty subjects
+  // -----------------------
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        if (fetchPrograms) await fetchPrograms();
-        await fetchAllStudents();
-      } catch (err) {
-        console.error(err);
-        addToast("Failed to fetch data ❌", "error");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [fetchAllStudents, fetchPrograms, addToast]);
+    if (!isAdmin) {
+      API.get(`/faculty/${user.faculty_id}/subjects`)
+        .then(({ data }) => {
+          setFacultySubjects(data || []);
+          console.log("Fetched faculty subjects:", data);
+        })
+        .catch((err) => console.error("Failed to fetch faculty subjects:", err))
+    }
+  }, [isAdmin, user]);
 
+  // -----------------------
   // Filter students
-  const filteredStudents = students.filter((s) => {
-    const query = searchQuery.toLowerCase();
-    const fullName = `${s.first_name} ${s.last_name} ${s.middle_name || ""}`.toLowerCase();
-    const matchesSearch =
-      s.student_id.toString().includes(query) || fullName.includes(query);
-    const matchesProgram = !programFilter || s.program_id === Number(programFilter);
-    const matchesStatus = !statusFilter || s.student_status === statusFilter;
-    const matchesYear = !filterYear || s.year_level === Number(filterYear);
-    const matchesSection = !filterSection || s.section === filterSection;
+  // -----------------------
+  useEffect(() => {
+    if (selectedSection && expandedProgram && expandedYear) {
+      const filtered = students.filter(
+        (s) =>
+          s.program_id === expandedProgram &&
+          Number(s.year_level) === Number(expandedYear) &&
+          s.section === selectedSection
+      );
+      setFilteredStudents(filtered);
+      setCurrentPage(1);
+    } else {
+      setFilteredStudents([]);
+    }
+  }, [selectedSection, expandedProgram, expandedYear, students]);
 
-    return matchesSearch && matchesProgram && matchesStatus && matchesYear && matchesSection;
-  });
+  // -----------------------
+  // Fetch available subjects
+  // -----------------------
+  useEffect(() => {
+    if (!selectedSection || !expandedProgram || !expandedYear) {
+      setAvailableSubjects([]);
+      setSelectedSubject(null);
+      setGradesRecords([]);
+      return;
+    }
 
-  // Pagination logic
+    if (isAdmin) {
+      API.get(`/subjects?program_id=${expandedProgram}`)
+        .then(({ data }) => {
+          const subjects = (data || []).filter((s) => {
+            const sections = (s.section || "").toString().split("/").map((x) => x.trim());
+            return Number(s.year_level) === Number(expandedYear) && sections.includes(selectedSection);
+          });
+          setAvailableSubjects(subjects);
+          setSelectedSubject(subjects[0] || null);
+        })
+        .catch(console.error);
+    } else {
+      // Faculty subjects
+      const subjects = (facultySubjects || []).filter((fs) => {
+        const sections = (fs.section || "").toString().split("/").map((x) => x.trim());
+        const matchesSection = sections.includes(selectedSection);
+        const matchesYear = Number(fs.year_level) === Number(expandedYear);
+        const matchesProgram = fs.program_id ? fs.program_id === expandedProgram : true; // allow undefined program_id
+        return matchesSection && matchesYear && matchesProgram;
+      });
+      setAvailableSubjects(subjects);
+      setSelectedSubject(subjects[0] || null);
+
+      if (subjects.length === 1) {
+        prepareGradesRecords(subjects[0]).catch(console.error);
+      } else {
+        setGradesRecords([]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSection, expandedProgram, expandedYear, facultySubjects, isAdmin]);
+
+  // -----------------------
+  // Fetch grades when selectedSubject changes
+  // -----------------------
+  useEffect(() => {
+    if (!selectedSubject) {
+      setGradesRecords([]);
+      return;
+    }
+    prepareGradesRecords(selectedSubject).catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSubject, filteredStudents]);
+
+  // -----------------------
+  // Compute rating
+  // -----------------------
+  const computeRating = (grade) => {
+    if (grade === "" || grade === null || grade === undefined) return "";
+    const g = parseFloat(grade);
+    if (Number.isNaN(g)) return "";
+    if (g === 0) return "INC";
+    if (g <= 3.0) return "Passed";
+    return "Failed";
+  };
+
+  // -----------------------
+  // Helper functions
+  // -----------------------
+  const getProgramCount = (programId) => students.filter((s) => s.program_id === programId).length;
+
+  const getSectionsForYear = (programId, yearLevel) => {
+    const yearStudents = students.filter(
+      (s) => s.program_id === programId && Number(s.year_level) === Number(yearLevel)
+    );
+    const uniqueSections = [...new Set(yearStudents.map((s) => s.section))].sort();
+    return uniqueSections.map((sec) => {
+      let hasSubject = false;
+      if (!isAdmin) {
+        hasSubject = facultySubjects.some((fs) => {
+          const secs = (fs.section || "").toString().split("/").map((x) => x.trim());
+          return Number(fs.year_level) === Number(yearLevel) && secs.includes(sec);
+        });
+      }
+      return {
+        name: sec,
+        count: yearStudents.filter((s) => s.section === sec).length,
+        hasSubject,
+      };
+    });
+  };
+
   const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
   const startIndex = (currentPage - 1) * studentsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, startIndex + studentsPerPage);
 
-  // Modal functions
+  // -----------------------
+  // Header render
+  // -----------------------
+  const renderHeader = () => {
+    if (!expandedProgram) return <h1 className="header-main">STUDENT MANAGEMENT</h1>;
+    if (expandedProgram && !selectedSection) {
+      return (
+        <>
+          <h1 className="header-main">STUDENT MANAGEMENT</h1>
+          <h2 className="header-sub">{programs.find((p) => p.program_id === expandedProgram)?.program_code}</h2>
+        </>
+      );
+    }
+    return (
+      <>
+        <h1 className="header-main">STUDENT MANAGEMENT</h1>
+        <h2 className="header-sub">
+          {programs.find((p) => p.program_id === expandedProgram)?.program_code}-{expandedYear}
+          {selectedSection}
+        </h2>
+      </>
+    );
+  };
+
+  const handleViewDetails = (student) => {
+    onViewDetails(student);
+  };
+
+  // -----------------------
+  // Modal helpers
+  // -----------------------
   const openModal = (student = null) => {
     setEditingStudent(student);
     setForm(
@@ -102,14 +242,11 @@ export default function StudentsTab({
     );
     setModalOpen(true);
   };
-
   const closeModal = () => {
     setModalOpen(false);
     setEditingStudent(null);
   };
-
-  const handleChange = (field, value) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSave = async () => {
     try {
@@ -117,7 +254,6 @@ export default function StudentsTab({
         addToast("Please select a program ❌", "error");
         return;
       }
-
       let response;
       if (editingStudent) {
         response = await API.put(`admin/students/${editingStudent.student_id}`, form);
@@ -130,7 +266,6 @@ export default function StudentsTab({
         setStudents((prev) => [...prev, response.data.student]);
         addToast("Student added successfully ✅", "success");
       }
-
       closeModal();
     } catch (err) {
       console.error(err);
@@ -138,22 +273,21 @@ export default function StudentsTab({
     }
   };
 
-  // Delete functions
+  // -----------------------
+  // Delete helpers
+  // -----------------------
   const openDeleteModal = (student) => {
     setDeleteStudent(student);
     setDeleteInputs({ student_id: "", confirm_text: "" });
     setDeleteModalOpen(true);
   };
-
   const closeDeleteModal = () => {
     setDeleteStudent(null);
     setDeleteInputs({ student_id: "", confirm_text: "" });
     setDeleteModalOpen(false);
   };
-
   const handleDeleteConfirm = async () => {
     if (!deleteStudent) return;
-
     if (
       deleteInputs.student_id !== deleteStudent.student_id.toString() ||
       deleteInputs.confirm_text.toLowerCase() !== "delete"
@@ -161,7 +295,6 @@ export default function StudentsTab({
       addToast("Student ID or confirmation text is incorrect ❌", "error");
       return;
     }
-
     try {
       await API.delete(`admin/students/${deleteStudent.student_id}`);
       addToast("Student deleted successfully 🗑️", "success");
@@ -172,175 +305,400 @@ export default function StudentsTab({
     }
   };
 
-  if (userRole !== "admin") return <p className="access-denied">Access denied</p>;
+  // -----------------------
+  // Grades helpers
+  // -----------------------
+  const prepareGradesRecords = async (subject) => {
+    if (!subject) {
+      setGradesRecords([]);
+      return;
+    }
+    const records = await Promise.all(
+      filteredStudents.map(async (stu) => {
+        const res = await API.get(`/grades/student/${stu.student_id}`);
+        const studentRecord = (res.data.records || []).find(
+          (r) => r.subject_section === subject.subject_section
+        );
+        return {
+          student_id: stu.student_id,
+          subject_section: subject.subject_section,
+          grade: studentRecord?.grade === null || studentRecord?.grade === undefined ? "" : studentRecord?.grade,
+        };
+      })
+    );
+    setGradesRecords(records);
+  };
+
+  const handleGradeChange = (student_id, value) => {
+    setGradesRecords((prev) =>
+      prev.map((r) => (r.student_id === student_id ? { ...r, grade: value } : r))
+    );
+  };
+
+  const handleSaveGrades = async () => {
+    if (!selectedSubject) {
+      addToast("No subject selected ❌", "error");
+      return;
+    }
+    try {
+      await Promise.all(
+        gradesRecords.map((rec) =>
+          API.put(`/grades/student/${rec.student_id}`, {
+            records: [
+              {
+                subject_section: rec.subject_section,
+                grade: rec.grade === "" ? null : rec.grade,
+              },
+            ],
+          })
+        )
+      );
+      addToast("Grades saved successfully ✅", "success");
+      await fetchAllStudents();
+      await prepareGradesRecords(selectedSubject);
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to save grades ❌", "error");
+    }
+  };
+
+  const handleAddProgram = async () => {
+    try {
+      const response = await API.post("/programs/add", {
+        program_code: programCode,
+        program_name: programName,
+        department_id: departmentId
+      });
+
+      addToast(response.data.message, "success");
+      setShowAddProgram(false);
+      fetchPrograms(); // make sure this refreshes UI
+    } catch (err) {
+      addToast(err.response?.data?.error || "Something went wrong", "error");
+    }
+  };
+
+
+
+  // -----------------------
+  // Render
+  // -----------------------
+  if (!["admin", "faculty"].includes(role)) return <p>Access denied</p>;
 
   return (
     <div>
-      <AdminHeaderControls
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        programs={programs}
-        programFilter={programFilter}
-        setProgramFilter={setProgramFilter}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        filterYear={filterYear}
-        setYearFilter={setYearFilter}
-        filterSection={filterSection}
-        setSectionFilter={setSectionFilter}
-        settings={settings}
-        tab="students"
-      />
+      <div className="students-container">
+        <div className="header-sub flex justify-between items-center">{
+          renderHeader()}
+          {/* Faculty subject picker */}
+          {selectedSection && !isAdmin && availableSubjects.length > 0 && (
+            <div className="subject-selection">
+              <h3>Subject Assigned</h3>
+              <CustomSelect
+                options={availableSubjects.map((s) => ({
+                  value: s.subject_section,
+                  label: s.subject_code + (s.subject_desc ? ` — ${s.subject_desc}` : ""),
+                }))}
+                value={selectedSubject?.subject_section}
+                onChange={(val) => {
+                  const subj = availableSubjects.find((s) => s.subject_section === val);
+                  setSelectedSubject(subj || null);
+                }}
+                placeholder={availableSubjects.length === 1 ? "Subject (auto-selected)" : "Select Subject"}
+              />
+            </div>
+          )}
+        </div>
+        {/* Back button */}
+        {(expandedProgram || selectedSection)
+        && ( <button className="back-button mb-4" onClick={() => {
+          if (selectedSection) setSelectedSection(null);
+          else { setExpandedProgram(null); setExpandedYear(null); } }} >
+          &larr;
+            Back
+          </button> )}
+        {/* Step 1: Programs */}
+        {!expandedProgram && (
+          <>
+          {isAdmin && (
+            <button className="btn btn-primary" onClick={() => setShowAddProgram(true)}>
+              Add Program
+            </button>
+          )}
+          <div className="programs-grid">
+            {programs.map((program) => (
+              <div
+                key={program.program_id}
+                className="program-card"
+                onClick={() => setExpandedProgram(program.program_id)}
+              >
+                <h2>
+                  {program.program_name} ({program.program_code})
+                </h2>
+                <p className="text-gray-600 mt-2">{getProgramCount(program.program_id)} Students</p>
+              </div>
+            ))}
+          </div>
+          </>
+        )}
 
-      <div className="students-header d-flex justify-content-between align-items-center">
-        <h2>Students Management</h2>
-        <button onClick={() => openModal()} className="btn btn-primary">
-          + Add Student
-        </button>
-      </div>
+        {/* Step 2: Years & Sections */}
+        {expandedProgram && !selectedSection && (
+          <>
+            {isAdmin && (
+              <button className="btn btn-primary" onClick={() => openModal()}>
+                Add Student
+              </button>
+            )}
+            <div className="years-grid">
+              {years.map((year) => {
+                const sections = getSectionsForYear(expandedProgram, year);
+                if (!sections || sections.length === 0) return null;
+                return (
+                  <div key={year} className="year-card">
+                    <h4 className="year-title">{formatYear(year)} Year</h4>
+                    <div className="sections-grid">
+                      {sections.map((sec) => (
+                        <div
+                          key={sec.name}
+                          className={`section-card ${sec.hasSubject ? "highlight" : ""}`}
+                          onClick={() => {
+                            setExpandedYear(year);
+                            setSelectedSection(sec.name);
+                            setSelectedSubject(null);
+                            setAvailableSubjects([]);
+                            setGradesRecords([]);
+                          }}
+                        >
+                          <span>{sec.name}</span>
+                          <span>{sec.count} Students</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
-      <div className="modern-table-wrapper">
-        {loading ? (
-          <p className="loading-text">Loading...</p>
-        ) : (
-          <table className="modern-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Year</th>
-                <th>Section</th>
-                <th>Status</th>
-                <th>Program</th>
-                <th>Enrollment</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedStudents.map((s) => (
-                <tr key={s.student_id}>
-                  <td>{s.student_id}</td>
-                  <td>{`${s.first_name} ${s.last_name}`}</td>
-                  <td>{s.email}</td>
-                  <td>{s.year_level}</td>
-                  <td>{s.section || "-"}</td>
-                  <td>{s.student_status}</td>
-                  <td>{programs.find((p) => p.program_id === s.program_id)?.program_code || "-"}</td>
-                  <td>
-                    {{
-                      0: "Not Cleared",
-                      1: "Cleared",
-                      2: "Pending Enrollment",
-                      3: "Enrolled",
-                    }[s.enrollment_status] || "Not Active"}
-                  </td>
-                  <td className="action-buttons d-flex gap-2 justify-content-center">
-                    <i
-                      className="bi bi-pencil-square text-primary action-icon"
-                      title="Edit"
-                      onClick={() => openModal(s)}
-                      style={{ cursor: "pointer", fontSize: "1.2rem" }}
-                    ></i>
-                    <i
-                      className="bi bi-trash text-danger action-icon"
-                      title="Delete"
-                      onClick={() => openDeleteModal(s)}
-                      style={{ cursor: "pointer", fontSize: "1.2rem" }}
-                    ></i>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Step 3: Students Table */}
+        {selectedSection && (
+          <div className="students-table">
+            <div className="students-header flex justify-between items-center my-4">
+              {/* Save Grades Button */}
+              {!isAdmin && selectedSubject && gradesRecords.length > 0 && (
+                <button className="btn btn-primary" onClick={handleSaveGrades}>
+                  Save Grades
+                </button>
+              )}
+            </div>
+
+            <div className="modern-table-wrapper hs">
+              {filteredStudents.length > 0 ? (
+                <table className="modern-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Status</th>
+                      {!isAdmin && availableSubjects.length > 0 && <th>Grade</th>}
+                      {!isAdmin && availableSubjects.length > 0 && <th>Rating</th>}
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedStudents.map((s) => {
+                      const foundGrade = gradesRecords.find((r) => r.student_id === s.student_id);
+                      const currentGrade = foundGrade ? foundGrade.grade : "";
+                      const rating = computeRating(currentGrade);
+                      return (
+                        <tr key={s.student_id}>
+                          <td>{s.student_id}</td>
+                          <td>{`${s.first_name} ${s.last_name}`}</td>
+                          <td>{s.email}</td>
+                          <td>{s.student_status}</td>
+                          {!isAdmin && availableSubjects.length > 0 && (
+                            <td>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="5"
+                                value={currentGrade ?? ""}
+                                onChange={(e) => handleGradeChange(s.student_id, e.target.value)}
+                                style={{ width: 80 }}
+                              />
+                            </td>
+                          )}
+                          {!isAdmin && availableSubjects.length > 0 && <td>{rating || "-"}</td>}
+
+                          <td className="actions-cell">
+                            <i className="bi bi-three-dots-vertical menu-icon"></i>
+                            <div className="actions-menu">
+                              <button onClick={() => handleViewDetails(s)} data-tooltip="View">
+                                <i className="bi bi-eye"></i>
+                              </button>
+                              {isAdmin && (
+                                <>
+                                <button onClick={() => openModal(s)} data-tooltip="Edit">
+                                  <i className="bi bi-pencil-square"></i>
+                                </button>
+                                <button onClick={() => openDeleteModal(s)} data-tooltip="Delete">
+                                  <i className="bi bi-trash"></i>
+                                </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <p>No students found for this selection.</p>
+              )}
+            </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i + 1}
+                    className={currentPage === i + 1 ? "active" : ""}
+                    onClick={() => setCurrentPage(i + 1)}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Pagination */}
-      <div className="pagination d-flex justify-content-center align-items-center gap-2 mt-3">
-        <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
-          &lt;
-        </button>
-        <span>{currentPage} / {totalPages || 1}</span>
-        <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}>
-          &gt;
-        </button>
-      </div>
-
-      {/* Add/Edit Modal */}
       {modalOpen && (
-        <div className="modal-overlay">
+      <div className="modal-overlay">
           <div className="modal-box">
             <h3>{editingStudent ? "Edit Student" : "Add Student"}</h3>
             <div className="modal-grid">
-              <input placeholder="Student ID" value={form.student_id} onChange={(e) => handleChange("student_id", e.target.value)} />
-              <input placeholder="First Name" value={form.first_name} onChange={(e) => handleChange("first_name", e.target.value)} />
-              <input placeholder="Last Name" value={form.last_name} onChange={(e) => handleChange("last_name", e.target.value)} />
-              <input placeholder="Middle Name" value={form.middle_name} onChange={(e) => handleChange("middle_name", e.target.value)} />
-              <CustomSelect
-                options={[
-                  { value: 1, label: "1st" },
-                  { value: 2, label: "2nd" },
-                  { value: 3, label: "3rd" },
-                  { value: 4, label: "4th" },
-                ]}
-                value={form.year_level}
-                onChange={(val) => handleChange("year_level", val)}
-                placeholder="Select Year Level"
+              <input
+                type="text"
+                placeholder="First Name"
+                value={form.first_name}
+                onChange={(e) => handleChange("first_name", e.target.value)}
               />
               <input
+                type="text"
+                placeholder="Last Name"
+                value={form.last_name}
+                onChange={(e) => handleChange("last_name", e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Middle Name"
+                value={form.middle_name}
+                onChange={(e) => handleChange("middle_name", e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Email"
+                value={form.email}
+                onChange={(e) => handleChange("email", e.target.value)}
+              />
+              <input
+                type="text"
                 placeholder="Section"
                 value={form.section}
-                onChange={(e) =>
-                  handleChange("section", e.target.value.toUpperCase().charAt(0))
-                }
+                onChange={(e) => handleChange("section", e.target.value)}
               />
-              <input placeholder="Email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
-              <CustomSelect
-                options={programs.map((p) => ({ value: p.program_id, label: p.program_code }))}
-                value={form.program_id}
-                onChange={(val) => handleChange("program_id", val)}
-                placeholder="Select Program"
+              <input
+                type="number"
+                placeholder="Year Level"
+                value={form.year_level}
+                onChange={(e) => handleChange("year_level", e.target.value)}
               />
-              <CustomSelect
-                options={[
-                  { value: "Regular", label: "Regular" },
-                  { value: "Irregular", label: "Irregular" },
-                ]}
-                value={form.student_status}
-                onChange={(val) => handleChange("student_status", val)}
-                placeholder="Select Status"
+              <div className="full">
+                <CustomSelect
+                  options={programs.map((p) => ({ value: p.program_id, label: p.program_code }))}
+                  value={form.program_id}
+                  onChange={(val) => handleChange("program_id", val)}
+                  placeholder="Select Program"
+                />
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={handleSave}>
+                Save
+              </button>
+              <button className="btn btn-cancel" onClick={closeModal}>
+                Cancel
+              </button>
+            </div>
+          </div>
+      </div>
+      )}
+      {deleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <h3>Delete Student</h3>
+            <div className="modal-grid">
+              <input
+                type="text"
+                placeholder="Student ID"
+                value={deleteInputs.student_id}
+                onChange={(e) => setDeleteInputs((prev) => ({ ...prev, student_id: e.target.value }))}
+              />
+              <input
+                type="text"
+                placeholder="Type DELETE to confirm"
+                value={deleteInputs.confirm_text}
+                onChange={(e) => setDeleteInputs((prev) => ({ ...prev, confirm_text: e.target.value }))}
               />
             </div>
             <div className="modal-actions">
-              <button className="btn btn-cancel" onClick={closeModal}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSave}>{editingStudent ? "Update" : "Save"}</button>
+              <button className="btn btn-danger" onClick={handleDeleteConfirm}>
+                Confirm Delete
+              </button>
+              <button className="btn btn-cancel" onClick={closeDeleteModal}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteModalOpen && deleteStudent && (
+      {showAddProgram && (
         <div className="modal-overlay">
           <div className="modal-box">
-            <h3>Delete Student</h3>
-            <p>
-              To confirm deletion, enter the <strong>Student ID</strong> and type <strong>DELETE</strong> below.
-            </p>
-            <input
-              placeholder="Student ID"
-              value={deleteInputs.student_id}
-              onChange={(e) => setDeleteInputs(prev => ({ ...prev, student_id: e.target.value }))}
-            />
-            <input
-              placeholder='Type "DELETE" to confirm'
-              value={deleteInputs.confirm_text}
-              onChange={(e) => setDeleteInputs(prev => ({ ...prev, confirm_text: e.target.value }))}
-            />
+            <h3>Add Program</h3>
+
+            <div className="modal-grid">
+              <input
+                type="text"
+                placeholder="Program Code (ex: BSIT)"
+                value={programCode}
+                onChange={(e) => setProgramCode(e.target.value)}
+              />
+
+              <input
+                type="text"
+                placeholder="Program Name (ex: Information Technology)"
+                value={programName}
+                onChange={(e) => setProgramName(e.target.value)}
+              />
+
+              <input
+                type="number"
+                placeholder="Department ID"
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+              />
+            </div>
+
             <div className="modal-actions">
-              <button className="btn btn-cancel" onClick={closeDeleteModal}>Cancel</button>
-              <button className="btn btn-delete" onClick={handleDeleteConfirm}>Delete</button>
+              <button className="btn btn-primary" onClick={handleAddProgram}>Save</button>
+              <button className="btn btn-cancel" onClick={() => setShowAddProgram(false)}>Cancel</button>
             </div>
           </div>
         </div>

@@ -7,7 +7,7 @@ export default function Sidebar({
   logout,
   navigate,
   setSelectedStudent,
-  isSidebarOpen, 
+  isSidebarOpen,
 }) {
   const { user, role } = useAuth();
   const isAdmin = role === "admin";
@@ -16,11 +16,11 @@ export default function Sidebar({
     { key: "dashboard", label: "Dashboard" },
     { key: "records", label: "Records" },
     { key: "subjects", label: "Subjects" },
+    { key: "students", label: "Students" },
     ...(isAdmin
       ? [
           { key: "enrollment", label: "Enrollment" },
           { key: "faculty", label: "Faculty" },
-          { key: "students", label: "Students" },
           { key: "settings", label: "Settings" },
         ]
       : []),

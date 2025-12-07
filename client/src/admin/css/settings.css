@@ -6,7 +6,8 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 20px;
+  margin: 2rem;
+  animation: fadeSlideDown 0.5s ease forwards;
 }
 
 /* Main grid: Semesters + Actions */

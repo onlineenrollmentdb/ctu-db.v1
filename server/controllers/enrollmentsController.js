@@ -202,19 +202,22 @@ exports.getEnrolledSubjects = async (req, res) => {
 
 	try {
 		const [rows] = await db.execute(
-			`SELECT es.enrollment_id,
-					es.subject_section,
-					s.subject_code,
-					s.subject_desc,
-					s.units,
-					s.year_level,
-					s.semester
-			 FROM enrollment_subjects es
-			 JOIN enrollments e ON es.enrollment_id = e.enrollment_id
-			 JOIN subjects s ON es.subject_section = s.subject_section
-			 WHERE e.student_id = ?
-			 ORDER BY s.year_level, s.semester`,
-			[student_id]
+			`SELECT
+				es.enrollment_id,
+				es.subject_section,
+				s.subject_code,
+				s.subject_desc,
+				s.units,
+				s.year_level,
+				s.semester
+			FROM enrollment_subjects es
+			JOIN enrollments e
+				ON es.enrollment_id = e.enrollment_id
+			JOIN subjects s
+				ON es.subject_section = s.subject_section
+			WHERE e.student_id = ?
+			ORDER BY s.year_level ASC, s.semester ASC`
+			, [student_id]
 		);
 
 		res.status(200).json(rows);

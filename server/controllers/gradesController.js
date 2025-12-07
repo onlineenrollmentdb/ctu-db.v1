@@ -77,15 +77,20 @@ exports.updateStudentGrades = async (req, res) => {
 
     try {
         for (const rec of records) {
-            if (rec.grade === null || rec.grade === "") continue;
+            // Ensure grade is defined and numeric; skip otherwise
+            const numericGrade = rec.grade !== undefined && rec.grade !== "" ? parseFloat(rec.grade) : null;
+            if (numericGrade === null || isNaN(numericGrade)) continue;
 
-            const numericGrade = parseFloat(rec.grade);
-            if (isNaN(numericGrade)) continue;
-
+            // Determine status based on numeric grade
             let status;
             if (numericGrade === 0) status = "INC";
             else status = numericGrade <= 3.0 ? "Passed" : "Failed";
 
+            // Safely set academic_year and semester defaults
+            const academicYear = rec.academic_year ?? "2025-2026";
+            const semester = rec.semester ?? 1;
+
+            // Check if grade record exists
             const [[existing]] = await db.execute(
                 `SELECT history_id FROM academic_history
                  WHERE student_id = ? AND subject_section = ?`,
@@ -93,6 +98,7 @@ exports.updateStudentGrades = async (req, res) => {
             );
 
             if (existing) {
+                // Update existing record
                 await db.execute(
                     `UPDATE academic_history
                      SET grade = ?, status = ?, academic_year = ?, semester = ?
@@ -100,12 +106,13 @@ exports.updateStudentGrades = async (req, res) => {
                     [
                         numericGrade,
                         status,
-                        rec.academic_year || "2025-2026",
-                        rec.semester || 1,
+                        academicYear,
+                        semester,
                         existing.history_id,
                     ]
                 );
             } else {
+                // Insert new record
                 await db.execute(
                     `INSERT INTO academic_history
                         (student_id, subject_section, semester, academic_year, grade, status)
@@ -113,8 +120,8 @@ exports.updateStudentGrades = async (req, res) => {
                     [
                         student_id,
                         rec.subject_section,
-                        rec.semester || 1,
-                        rec.academic_year || "2025-2026",
+                        semester,
+                        academicYear,
                         numericGrade,
                         status,
                     ]
@@ -122,6 +129,7 @@ exports.updateStudentGrades = async (req, res) => {
             }
         }
 
+        // Recalculate student status
         const [failed] = await db.execute(
             `SELECT COUNT(*) AS failCount
              FROM academic_history
@@ -136,6 +144,7 @@ exports.updateStudentGrades = async (req, res) => {
             [newStatus, student_id]
         );
 
+        // Send notification
         await sendNotification(
             "student",
             student_id,

@@ -3,7 +3,6 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useToast } from "../../context/ToastContext";
 import API from "../../api/api";
-import AdminHeaderControls from "../components/AdminHeaderControls";
 
 const parseDBDate = (dbDate) => (dbDate ? new Date(dbDate) : new Date());
 const formatMonthDay = (date) => {
@@ -15,7 +14,6 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
   const [editMode, setEditMode] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [previewSettings, setPreviewSettings] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [showShiftModal, setShowShiftModal] = useState(false);
   const { addToast } = useToast();
 
@@ -71,13 +69,9 @@ export default function SettingsTab({ settings, setSettings, fetchSettings, load
 
   return (
     <div className="settings-container">
-      <AdminHeaderControls
-        searchQuery={searchTerm}
-        setSearchQuery={setSearchTerm}
-        settings={settings}
-        tab="settings"
-      />
-
+      <div className="header-sub">
+        <h1 className="header-main">SETTINGS MANAGEMENT</h1>
+      </div>
       {/* Semesters + Actions */}
       <div className="settings-grid">
         <div className="settings-semesters">

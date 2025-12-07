@@ -135,16 +135,23 @@ export default function AdminDashboard() {
 
   // 🔹 Select student from dashboard
   const handleSelectStudentFromDashboard = useCallback(async (student) => {
-    setSelectedStudent(student);
-    setSearchQuery(student.full_name || "");
-    setActiveTab("records");
+    setLoading(true);
     try {
-      const res = await API.get(`grades/student/${student.student_id}`);
-      setSubjects(res.data.records);
-    } catch {
-      addToast("Error fetching student records ❌", "error");
+      // Fetch full student info
+      const res = await API.get(`/students/${student.student_id}`);
+      const fullStudent = res.data;
+
+      setSelectedStudent(fullStudent); // pass full object
+      setSearchQuery(fullStudent.full_name || "");
+      setActiveTab("records");
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to fetch student details ❌", "error");
+    } finally {
+      setLoading(false);
     }
   }, [addToast]);
+
 
   // 🔹 Filtered students (memoized)
   const filteredStudents = useMemo(() => {
@@ -238,15 +245,18 @@ export default function AdminDashboard() {
           {activeTab === "faculty" && userRole === "admin" && (
             <FacultyTab
               settings={settings}
+              fetchSettings={fetchSettings}
               faculty={faculty}
               setFaculty={setFaculty}
               fetchFaculty={fetchFaculty}
+              subjects={subjects}
+              fetchSubjects={fetchSubjects}
               departments={departments}
               loading={loading}
               setLoading={setLoading}
             />
           )}
-          {activeTab === "students" && userRole === "admin" && (
+          {activeTab === "students" && userRole !== "student" && (
             <StudentsTab
               settings={settings}
               students={students}
@@ -256,6 +266,8 @@ export default function AdminDashboard() {
               programFilter={filterProgram}
               setProgramFilter={setFilterProgram}
               fetchPrograms={fetchPrograms}
+              setActiveTab={setActiveTab}
+              onViewDetails={handleSelectStudentFromDashboard}
             />
           )}
           {activeTab === "settings" && userRole === "admin" && (

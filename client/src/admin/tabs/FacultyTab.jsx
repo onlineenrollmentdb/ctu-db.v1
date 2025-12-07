@@ -1,23 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
 import API from "../../api/api";
 import AdminHeaderControls from "../components/AdminHeaderControls";
 import { CustomSelect } from "../../components/customSelect";
+import "../css/faculty.css";
 
-dayjs.extend(relativeTime);
-
-export default function FacultyTab({ settings, faculty, setFaculty, fetchFaculty, departments }) {
+export default function FacultyTab({
+  settings,
+  fetchSettings,
+  faculty,
+  fetchFaculty,
+  departments,
+  subjects,
+  fetchSubjects,
+}) {
   const { addToast } = useToast();
   const { role: userRole } = useAuth();
 
-  const [loading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingFaculty, setEditingFaculty] = useState(null);
-
-  const [form, setForm] = useState({
+  const [selectedFaculty, setSelectedFaculty] = useState(null);
+  const [facultyForm, setFacultyForm] = useState({
     first_name: "",
     last_name: "",
     email: "",
@@ -25,100 +27,199 @@ export default function FacultyTab({ settings, faculty, setFaculty, fetchFaculty
     role: "grader",
     password: "",
   });
-
-  // 🔹 Search & Department Filter
+  const [assignedSubjects, setAssignedSubjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
+  const currentSemester = settings?.current_semester || "1st";
+  const currentAcademicYear = settings?.academic_year || "2025-2026";
 
   useEffect(() => {
     fetchFaculty();
-  }, [fetchFaculty]);
+    fetchSubjects();
+    fetchSettings();
+  }, [fetchFaculty, fetchSubjects, fetchSettings]);
 
-  // Filtered faculty list
-  const filteredFaculty = faculty.filter((f) => {
-    const query = searchQuery.toLowerCase();
-    const fullName = `${f.first_name} ${f.last_name}`.toLowerCase();
-    const matchesSearch =
-      f.faculty_id.toString().includes(query) || fullName.includes(query);
-    const matchesDepartment =
-      !departmentFilter || f.department_id === parseInt(departmentFilter);
-    return matchesSearch && matchesDepartment;
-  });
+  const filteredFaculty = useMemo(() => {
+    return faculty.filter((f) => {
+      const fullName = `${f.first_name} ${f.last_name}`.toLowerCase();
+      return (
+        (f.faculty_id.toString().includes(searchQuery.toLowerCase()) ||
+          fullName.includes(searchQuery.toLowerCase())) &&
+        (!departmentFilter || f.department_id === parseInt(departmentFilter))
+      );
+    });
+  }, [faculty, searchQuery, departmentFilter]);
 
-  const openModal = (faculty = null) => {
-    setEditingFaculty(faculty);
-    setForm(
-      faculty
-        ? {
-            first_name: faculty.first_name,
-            last_name: faculty.last_name,
-            email: faculty.email,
-            department_id: faculty.department_id || "",
-            role: faculty.role,
-            password: "",
-          }
-        : {
-            first_name: "",
-            last_name: "",
-            email: "",
-            department_id: "",
-            role: "grader",
-            password: "",
-          }
-    );
-    setModalOpen(true);
-  };
+  const subjectsByYear = useMemo(() => {
+    const grouped = {};
+    (subjects || []).forEach((s) => {
+      if (s.semester !== currentSemester) return;
+      if (!grouped[s.year_level]) grouped[s.year_level] = [];
+      grouped[s.year_level].push(s);
+    });
+    return grouped;
+  }, [subjects, currentSemester]);
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingFaculty(null);
-  };
+  const openFaculty = async (faculty) => {
+    setSelectedFaculty(faculty);
+    setFacultyForm({
+      first_name: faculty.first_name,
+      last_name: faculty.last_name,
+      email: faculty.email,
+      department_id: faculty.department_id || "",
+      role: faculty.role,
+      password: "",
+    });
 
-  const handleChange = (field, value) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
-
-  const handleSave = async () => {
     try {
-      if (editingFaculty) {
-        await API.put(`/faculty/${editingFaculty.faculty_id}`, form);
-        addToast("Faculty updated successfully ✅", "success");
-      } else {
-        await API.post(`/faculty`, form);
-        addToast("Faculty added successfully ✅", "success");
-      }
-      closeModal();
-      fetchFaculty();
+      const { data } = await API.get(`/faculty/${faculty.faculty_id}/subjects`);
+      setAssignedSubjects(
+        (data || []).map((s) => ({
+          ...s,
+          semester: currentSemester,
+          academic_year: currentAcademicYear,
+          section: s.section || "",
+        }))
+      );
     } catch (err) {
-      console.error("Error saving faculty:", err);
-      addToast("Failed to save faculty ❌", "error");
+      console.error(err);
+      setAssignedSubjects([]);
+    }
+
+    setIsEditing(false);
+  };
+
+  const handleFacultyChange = (field, value) =>
+    setFacultyForm((prev) => ({ ...prev, [field]: value }));
+
+  // Combined Save function (Add or Edit)
+  const handleSaveAll = async () => {
+    if (!selectedFaculty || selectedFaculty.faculty_id === null) {
+      // Add new faculty
+      try {
+        const { data } = await API.post("/faculty", facultyForm);
+        addToast("Faculty added successfully ✅", "success");
+
+        if (assignedSubjects.length > 0) {
+          await API.put(`/faculty/${data.faculty_id}/subjects`, {
+            subjects: assignedSubjects.map((s) => ({
+              subject_code: s.subject_code,
+              year_level: s.year_level,
+              section: s.section,
+              semester: s.semester,
+              academic_year: s.academic_year,
+            })),
+          });
+          addToast("Assigned subjects saved ✅", "success");
+        }
+
+        fetchFaculty();
+        setSelectedFaculty(null);
+        setFacultyForm({
+          first_name: "",
+          last_name: "",
+          email: "",
+          department_id: "",
+          role: "grader",
+          password: "",
+        });
+        setAssignedSubjects([]);
+        setIsEditing(false);
+      } catch (err) {
+        console.error(err);
+        addToast("Failed to save faculty ❌", "error");
+      }
+    } else {
+      // Update existing faculty
+      try {
+        await API.put(`/faculty/${selectedFaculty.faculty_id}`, facultyForm);
+
+        await API.put(`/faculty/${selectedFaculty.faculty_id}/subjects`, {
+          subjects: assignedSubjects.map((s) => ({
+            subject_code: s.subject_code,
+            year_level: s.year_level,
+            section: s.section,
+            semester: s.semester,
+            academic_year: s.academic_year,
+          })),
+        });
+
+        addToast("Faculty and assigned subjects updated ✅", "success");
+        fetchFaculty();
+        setIsEditing(false);
+      } catch (err) {
+        console.error(err);
+        addToast("Failed to update faculty ❌", "error");
+      }
     }
   };
 
-  const handleDelete = async (faculty_id) => {
-    if (!window.confirm("Delete this faculty?")) return;
+  const handleToggleSubject = (subject) => {
+    if (assignedSubjects.some((s) => s.subject_code === subject.subject_code)) {
+      setAssignedSubjects(assignedSubjects.filter((s) => s.subject_code !== subject.subject_code));
+    } else {
+      setAssignedSubjects([
+        ...assignedSubjects,
+        {
+          subject_code: subject.subject_code,
+          subject_desc: subject.subject_desc,
+          year_level: subject.year_level,
+          semester: currentSemester,
+          section: "",
+          academic_year: currentAcademicYear,
+        },
+      ]);
+    }
+  };
+
+  const handleSectionChange = (subject_code, section) => {
+    setAssignedSubjects(
+      assignedSubjects.map((s) =>
+        s.subject_code === subject_code ? { ...s, section } : s
+      )
+    );
+  };
+
+  // Delete with confirmation
+  const handleDeleteConfirm = async () => {
+    if (!selectedFaculty || selectedFaculty.faculty_id === null) return;
+
+    const confirmed = window.prompt(
+      `To delete faculty ID ${selectedFaculty.faculty_id}, type "delete" and press OK`
+    );
+
+    if (confirmed?.toLowerCase() !== "delete") {
+      addToast("Deletion cancelled ❌", "error");
+      return;
+    }
+
     try {
-      await API.delete(`/faculty/${faculty_id}`);
+      await API.delete(`/faculty/${selectedFaculty.faculty_id}`);
       addToast("Faculty deleted successfully 🗑️", "success");
       fetchFaculty();
-    } catch {
+      setSelectedFaculty(null);
+      setFacultyForm({
+        first_name: "",
+        last_name: "",
+        email: "",
+        department_id: "",
+        role: "grader",
+        password: "",
+      });
+      setAssignedSubjects([]);
+      setIsEditing(false);
+    } catch (err) {
+      console.error(err);
       addToast("Failed to delete faculty ❌", "error");
     }
-  };
-
-  const getStatus = (f) => {
-    if (f.is_active) return { text: "Online", className: "status-online" };
-    if (!f.last_login) return { text: "Offline", className: "status-offline" };
-    return {
-      text: `Offline ${dayjs(f.last_login).fromNow()}`,
-      className: "status-offline",
-    };
   };
 
   if (userRole !== "admin") return <p className="access-denied">Access denied</p>;
 
   return (
-    <div className="faculty-wrapper">
-      {/* 🔹 Header Search + Department Filter */}
+    <div className="faculty-container">
       <AdminHeaderControls
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -129,133 +230,224 @@ export default function FacultyTab({ settings, faculty, setFaculty, fetchFaculty
         departments={departments}
       />
 
-      <div className="faculty-header">
-        <h2>Faculty Management</h2>
-        <button onClick={() => openModal()} className="btn btn-primary">
-          + Add Faculty
-        </button>
-      </div>
-
-      <div className="modern-table">
-        {loading ? (
-          <p className="loading-text">Loading...</p>
-        ) : (
-          <table className="modern-table-wrapper">
+      <div className="faculty-wrapper">
+        {/* Faculty List */}
+        <div className="faculty-list">
+          <h3>Faculty</h3>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setSelectedFaculty({ faculty_id: null }); // null indicates new faculty
+              setFacultyForm({
+                first_name: "",
+                last_name: "",
+                email: "",
+                department_id: "",
+                role: "grader",
+                password: "",
+              });
+              setAssignedSubjects([]);
+              setIsEditing(true);
+            }}
+          >
+            + Add Faculty
+          </button>
+          <table>
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Department</th>
-                <th>Role</th>
+                <th>Dept</th>
                 <th>Status</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredFaculty.map((f) => {
-                const status = getStatus(f);
-                const d = departments.find((dep) => dep.department_id === f.department_id) || {};
-                return (
-                  <tr key={f.faculty_id}>
-                    <td>{f.faculty_id}</td>
-                    <td>{`${f.first_name} ${f.last_name}`}</td>
-                    <td>{f.email}</td>
-                    <td>{d.department_code || "-"}</td>
-                    <td className="capitalize">{f.role}</td>
-                    <td>
-                      <span className={`status-badge ${status.className}`}>
-                        {status.text}
-                      </span>
-                    </td>
-                    <td className="action-buttons">
-                      {/* Edit Icon */}
-                      <i
-                        className="bi bi-pencil-square action-icon"
-                        title="Edit"
-                        onClick={() => openModal(f)}
-                        style={{ cursor: "pointer", fontSize: "1.2rem" }}
-                      ></i>
-
-                      {/* Delete Icon */}
-                      <i
-                        className="bi bi-trash action-icon"
-                        title="Delete"
-                        onClick={() => handleDelete(f.faculty_id)}
-                        style={{ cursor: "pointer", fontSize: "1.2rem" }}
-                      ></i>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filteredFaculty.map((f) => (
+                <tr
+                  key={f.faculty_id}
+                  className={selectedFaculty?.faculty_id === f.faculty_id ? "selected" : ""}
+                  onClick={() => openFaculty(f)}
+                >
+                  <td>{f.faculty_id}</td>
+                  <td>{`${f.first_name} ${f.last_name}`}</td>
+                  <td>{f.email}</td>
+                  <td>{departments.find((d) => d.department_id === f.department_id)?.department_code || "-"}</td>
+                  <td>{f.is_active ? (f.online ? "Online" : "Active") : "Inactive"}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
 
-      {/* ========================= MODAL ========================= */}
-      {modalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-box">
-            <h3>{editingFaculty ? "Edit Faculty" : "Add Faculty"}</h3>
-            <div className="modal-grid">
-              <input
-                placeholder="First Name"
-                value={form.first_name}
-                onChange={(e) => handleChange("first_name", e.target.value)}
-              />
-              <input
-                placeholder="Last Name"
-                value={form.last_name}
-                onChange={(e) => handleChange("last_name", e.target.value)}
-              />
-              <input
-                placeholder="Email"
-                className="full"
-                value={form.email}
-                onChange={(e) => handleChange("email", e.target.value)}
+        {/* Faculty Details */}
+        {selectedFaculty && (
+          <div className="faculty-details">
+            <div className="faculty-header">
+              <h3>
+                {selectedFaculty.faculty_id === null
+                  ? "Add New Faculty"
+                  : `${selectedFaculty.first_name} ${selectedFaculty.last_name}`}
+              </h3>
+            </div>
+
+            {/* Faculty Info Form */}
+            <div className="subject-form">
+              <div className="form-row two-cols">
+                <div className="col">
+                  <label> First Name</label>
+                  <input
+                    placeholder="First Name"
+                    value={facultyForm.first_name}
+                    onChange={(e) => handleFacultyChange("first_name", e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className="col">
+                  <label> Last Name</label>
+                  <input
+                    placeholder="Last Name"
+                    value={facultyForm.last_name}
+                    onChange={(e) => handleFacultyChange("last_name", e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+              <div className="form-row full">
+                <label>Email</label>
+                <input
+                  placeholder="Email"
+                  value={facultyForm.email}
+                  onChange={(e) => handleFacultyChange("email", e.target.value)}
+                  disabled={!isEditing}
                 />
+              </div>
+              <div className="form-row full">
+                <label>Department</label>
                 <CustomSelect
                   options={[
                     { value: "", label: "-- Select Department --" },
-                    ...departments.map((d) => ({
-                      value: d.department_id,
-                      label: d.department_name,
-                    }))
+                    ...departments.map((d) => ({ value: d.department_id, label: d.department_name })),
                   ]}
-                  value={form.department_id}
-                  onChange={(val) => handleChange("department_id", val)}
-                  placeholder="-- Select Department --"
+                  value={facultyForm.department_id}
+                  onChange={(val) => handleFacultyChange("department_id", val)}
+                  disabled={!isEditing}
                 />
-                <CustomSelect
-                  options={[
-                    { value: "dean", label: "Dean" },
-                    { value: "advisor", label: "Advisor" },
-                    { value: "grader", label: "Grader" },
-                  ]}
-                  value={form.role}
-                  onChange={(val) => handleChange("role", val)}
-                  placeholder="Select role"
-                />
-              <input
-                type="password"
-                placeholder={editingFaculty ? "New Password (optional)" : "Password"}
-                className="full"
-                value={form.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-              />
+              </div>
+              <div className="form-row two-cols">
+                <div className="col">
+                  <label>Role</label>
+                  <CustomSelect
+                    options={[
+                      { value: "dean", label: "Dean" },
+                      { value: "advisor", label: "Advisor" },
+                      { value: "grader", label: "Grader" },
+                    ]}
+                    value={facultyForm.role}
+                    onChange={(val) => handleFacultyChange("role", val)}
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className="col">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    placeholder={selectedFaculty.faculty_id === null ? "Password" : "New Password (optional)"}
+                    value={facultyForm.password}
+                    onChange={(e) => handleFacultyChange("password", e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={closeModal}>
-                Cancel
-              </button>
-              <button className="btn-primary" onClick={handleSave}>
-                {editingFaculty ? "Update" : "Save"}
-              </button>
-            </div>
+
+            <hr />
+
+            {/* Assign Subjects */}
+            <h4>Assign Subjects</h4>
+            <select
+              onChange={(e) => {
+                const code = e.target.value;
+                if (!code) return;
+                const selected = subjects.find(
+                  (s) => s.subject_code === code && s.semester === currentSemester
+                );
+                if (selected) handleToggleSubject(selected);
+                e.target.value = "";
+              }}
+              disabled={!isEditing}
+            >
+              <option value="">-- Select Subject --</option>
+              {Object.entries(subjectsByYear).map(([year, subs]) => (
+                <optgroup key={year} label={`-- ${year} Year --`}>
+                  {subs.map((s) => (
+                    <option key={s.subject_code} value={s.subject_code}>
+                      {s.subject_code} — {s.subject_desc}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+
+            <h4>Assigned Subjects</h4>
+            <table className="modern-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Title</th>
+                  <th>Year</th>
+                  <th>Sections</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assignedSubjects.map((s) => (
+                  <tr key={s.subject_code}>
+                    <td>{s.subject_code}</td>
+                    <td>{s.subject_desc}</td>
+                    <td>{s.year_level}</td>
+                    <td>
+                      <input
+                        type="text"
+                        value={s.section || ""}
+                        placeholder="A/B/C"
+                        onChange={(e) => handleSectionChange(s.subject_code, e.target.value)}
+                        disabled={!isEditing}
+                      />
+                    </td>
+                    <td>
+                      {isEditing && (
+                        <button className="btn btn-delete" onClick={() => handleToggleSubject(s)}>Remove</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Edit / Save / Delete */}
+            <button
+              className="btn btn-edit"
+              onClick={() => setIsEditing((prev) => !prev)}
+            >
+              {isEditing ? "Cancel Edit" : selectedFaculty.faculty_id === null ? "Cancel Add" : "Edit Faculty"}
+            </button>
+
+            {isEditing && (
+              <div className="actions">
+                <button className="btn btn-primary" onClick={handleSaveAll}>
+                  Save All
+                </button>
+                {selectedFaculty.faculty_id !== null && (
+                  <button className="btn btn-delete" onClick={handleDeleteConfirm}>
+                    Delete Faculty
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -320,10 +320,10 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
         tab="enrollment"
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: "1.5rem" }}>
+      <div className="enrollment-grid">
         {/* Enrollment List */}
-        <div>
-          <div className="dashboard-section">
+        <div className="dashboard-section">
+          <div className="table-header">
             <h3>Enrollment List</h3>
             <div className="enroll-tabs">
               <button
@@ -340,7 +340,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
                 Enrolled
               </button>
             </div>
-
+          </div>
             {loading ? (
               <p>Loading enrolled students...</p>
             ) : (
@@ -403,7 +403,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
                 </button>
               </div>
             )}
-          </div>
+
         </div>
 
         {/* Stats Cards */}

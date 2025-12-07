@@ -20,6 +20,7 @@ export const AdminHeaderControls = ({
   tab,
   filteredStudents = [],
   handleSelectStudent,
+  selectedStudent,
   programs = [],
   departments = [],
 }) => {
@@ -27,6 +28,7 @@ export const AdminHeaderControls = ({
   const [highlightIndex, setHighlightIndex] = useState(0);
   const wrapperRef = useRef(null);
   const [maxSection, setMaxSection] = useState("A");
+  const didSyncRef = useRef(false);
 
   const showProgramFilter = ["dashboard", "enrollment", "subjects", "students"].includes(tab);
   const showYearFilter = ["enrollment", "subjects", "students"].includes(tab);
@@ -37,6 +39,22 @@ export const AdminHeaderControls = ({
   const getSafeFullName = (s) =>
     `${s.first_name || ""} ${s.middle_name || ""} ${s.last_name || ""}`.trim();
 
+  // 🔹 Sync search bar with selected student
+  useEffect(() => {
+    if (
+      selectedStudent &&
+      tab === "records" &&
+      !didSyncRef.current
+    ) {
+      const fullName = `${selectedStudent.first_name || ""} ${selectedStudent.middle_name || ""} ${selectedStudent.last_name || ""}`.trim();
+      setSearchQuery(fullName);
+
+      // Only call handleSelectStudent if needed
+      handleSelectStudent?.({ ...selectedStudent, full_name: fullName });
+
+      didSyncRef.current = true; // mark as synced
+    }
+  }, [selectedStudent, tab, setSearchQuery, handleSelectStudent]);
   // Fetch max section when programFilter or filterYear changes
   useEffect(() => {
     const fetchMaxSection = async () => {
@@ -133,9 +151,8 @@ export const AdminHeaderControls = ({
           <input
             type="text"
             placeholder={
-              tab === "records"
-                ? "Search by ID or Name"
-                : "Search by ID, Name, or Subject"
+              tab === "subjects" ? "Search Subject"
+                : "Search by ID or Name"
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

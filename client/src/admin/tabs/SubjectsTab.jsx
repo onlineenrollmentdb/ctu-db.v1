@@ -370,7 +370,7 @@ export default function SubjectsTab({
               {/* Edit / Save / Delete */}
               {isAdmin && (
                 <button
-                  className="btn btn-secondary edit-btn"
+                  className="btn btn-edit"
                   onClick={() => setIsEditing((prev) => !prev)}
                 >
                   {isEditing ? "Cancel Edit" : "Edit Subject"}

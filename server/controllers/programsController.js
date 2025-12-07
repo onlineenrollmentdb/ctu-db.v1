@@ -83,6 +83,35 @@ exports.getDepartments = async (req, res) => {
         res.status(500).json({ error: "Failed to fetch departments" });
     }
 };
+// ✅ Add a new Program
+exports.addProgram = async (req, res) => {
+    try {
+        const { program_code, program_name, department_id } = req.body;
+
+        if (!program_code || !program_name || !department_id) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const [duplicate] = await db.execute(
+            `SELECT program_id FROM programs WHERE program_code = ?`,
+            [program_code]
+        );
+
+        if (duplicate.length > 0) {
+            return res.status(400).json({ error: "Program code already exists." });
+        }
+
+        await db.execute(
+            `INSERT INTO programs (program_code, program_name, department_id) VALUES (?, ?, ?)`,
+            [program_code, program_name, department_id]
+        );
+
+        res.json({ message: "Program added successfully" });
+    } catch (error) {
+        console.error("Add program error:", error);
+        res.status(500).json({ error: "Failed to add program" });
+    }
+};
 
 // --------------------
 // Get max section for a given program and year

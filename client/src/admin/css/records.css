@@ -1,0 +1,154 @@
+.records-tab {
+  color: var(--primary-color);
+  animation: fadeSlideDown 0.5s ease forwards;
+  transition: all 0.3s ease;
+}
+
+.records-tab .btn {
+  max-width: 200px;
+  margin-bottom: 1rem;
+  transition: transform 0.2s ease;
+}
+
+.records-tab .btn:hover {
+  transform: translateY(-2px);
+}
+
+/* RecordsTab Grid Layout */
+.students-layout {
+  padding: 0 1rem;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: auto auto 100px 100px 100px 100px;
+  gap: 2rem;
+  animation: fadeSlideUp 0.5s ease forwards;
+}
+
+/* Profile Card - top-left, spans 2 rows and 3 columns */
+.profile-wrapper {
+  grid-column: 1 / span 3;
+  grid-row: 1 / span 2;
+  color: black;
+}
+
+.profile-wrapper:hover {
+  transform: translateY(-5px);
+}
+/* Modern Table - right side */
+.records-tab .modern-table-wrapper {
+  grid-column: 4 / span 3;
+  grid-row: 1 / span 2;
+  overflow-x: auto;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  padding: 2rem;
+  margin: 2rem 0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.records-tab .modern-table-wrapper:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+}
+
+.students-layout .modern-table {
+  max-height: 80vh;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.students-layout .modern-table td {
+  font-size: 0.7rem;
+  transition: all 0.2s ease;
+}
+
+/* Grades Cards */
+.students-layout .avg {
+  grid-column: 6 / 7;
+  grid-row: 3 / 4;
+}
+
+.students-layout .total {
+  grid-column: 6 / 7;
+  grid-row: 4 / 5;
+}
+
+.students-layout .passed {
+  grid-column: 6 / 7;
+  grid-row: 5 / 6;
+}
+
+.students-layout .failed {
+  grid-column: 6 / 7;
+  grid-row: 6 / 7;
+}
+
+.students-layout .graph {
+  grid-column: 1 / span 5;
+  grid-row: 3 / span 4;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  padding: 2rem;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Animations */
+@keyframes fadeSlideDown {
+  0% { opacity: 0; transform: translateY(-20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeSlideUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive Layouts */
+@media (max-width: 1200px) {
+  .students-layout {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: auto auto auto auto auto auto;
+    gap: 1.5rem;
+  }
+
+  .profile-wrapper {
+    grid-column: 1 / span 4;
+    grid-row: 1 / span 2;
+  }
+
+  .modern-table-wrapper {
+    grid-column: 1 / span 4;
+    grid-row: 3 / span 2;
+  }
+
+  .students-layout .graph {
+    grid-column: 1 / span 4;
+    grid-row: 5 / span 2;
+  }
+
+  .students-layout .avg,
+  .students-layout .total,
+  .students-layout .passed,
+  .students-layout .failed {
+    grid-column: 1 / span 2;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .students-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(auto, minmax(200px, auto));
+    gap: 1rem;
+  }
+  .records-tab{
+    margin: 0;
+    padding: 0;
+  }
+}

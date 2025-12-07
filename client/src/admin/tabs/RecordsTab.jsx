@@ -5,6 +5,17 @@ import { useToast } from "../../context/ToastContext";
 import { connectSocket, getSocket, disconnectSocket } from "../../socket";
 import defaultUser from "../../img/default_user.webp";
 import "../../css/ProfilePage.css";
+import "../../css/GradesPage.css";
+import "../css/records.css";
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function RecordsTab({
   students,
@@ -110,10 +121,14 @@ export default function RecordsTab({
   // Initial search
   useEffect(() => {
     if (initialSearch && initialSearch.student_id) {
-      setSearchQuery(initialSearch.full_name);
-      handleSelectStudent(initialSearch);
+      // Only select if not already selected
+      if (!selectedStudent || selectedStudent.student_id !== initialSearch.student_id) {
+        setSearchQuery(initialSearch.full_name);
+        handleSelectStudent(initialSearch);
+      }
     }
-  }, [initialSearch, handleSelectStudent, setSearchQuery]);
+  }, [initialSearch, handleSelectStudent, setSearchQuery, selectedStudent]);
+
 
   // Search filter
   useEffect(() => {
@@ -235,7 +250,7 @@ export default function RecordsTab({
       : defaultUser;
 
   return (
-    <div className="students-tab">
+    <div className="records-tab">
       <AdminHeaderControls
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -246,98 +261,91 @@ export default function RecordsTab({
         filter={filtered}
         filteredStudents={filteredStudents}
         handleSelectStudent={handleSelectStudent}
+        selectedStudent={selectedStudent}
       />
 
       {selectedStudent ? (
         <div className="students-layout">
-        {/* 🔹 Student Details */}
-        <div className="profile-wrapper">
-          <div className="profile-card">
-            <h2 className="profile-header">Student Details</h2>
+          {/* 🔹 Profile Card */}
+          <div className="profile-wrapper">
+            <div className="profile-card">
+              <h2 className="profile-header">Student Details</h2>
 
-            <div className="profile-grid-advanced">
-              {/* Profile Picture */}
-              <div className="profile-picture">
-                <div className={`profile-pic-wrapper ${isEditingDetails ? "editable" : ""}`}>
-                  <img
-                    src={profilePicture|| defaultUser}
-                    alt="Profile"
-                    className="profile-img"
-                  />
-                  {isEditingDetails && (
-                    <div className="overlay">
-                      <span>Change Profile?</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={e => handleDetailChange("profile_picture", e.target.files[0])}
-                      />
-                    </div>
-                  )}
+              <div className="profile-grid-advanced">
+                {/* Profile Picture */}
+                <div className="profile-picture">
+                  <div className={`profile-pic-wrapper ${isEditingDetails ? "editable" : ""}`}>
+                    <img src={profilePicture || defaultUser} alt="Profile" className="profile-img" />
+                    {isEditingDetails && (
+                      <div className="overlay">
+                        <span>Change Profile?</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => handleDetailChange("profile_picture", e.target.files[0])}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Editable Fields */}
+                {[
+                  ["First Name", "first_name"], ["Middle Name", "middle_name"], ["Last Name", "last_name"],
+                  ["Contact Number", "contact_number"], ["Student ID", "student_id"], ["Permanent Address", "permanent_address"],
+                  ["District", "congressional_district"], ["Gender", "gender"], ["Region", "region"],
+                  ["Email", "email"], ["Course", "program_code"], ["Civil Status", "civil_status"],
+                  ["Year & Section", "year_section"], ["Citizenship", "citizenship"], ["Birthday", "birth_date"],
+                  ["Birth Place", "birthplace"], ["Religion", "religion"], ["Status", "student_status"],
+                  ["Father's Name", "father_name"], ["Mother's Name", "mother_name"],
+                  ["Father's Occupation", "father_occupation"], ["Mother's Occupation", "mother_occupation"],
+                  ["Guardian's Name", "guardian_name"], ["Relation to Guardian", "guardian_relationship"],
+                  ["Guardian Contact", "guardian_contact"], ["Enrollment Status", "is_enrolled"]
+                ].map(([label, field]) => (
+                  <ProfileField
+                    key={field}
+                    label={label}
+                    name={field}
+                    value={
+                      field === "year_section"
+                        ? `${studentForm.year_level} - ${studentForm.section}`
+                        : field === "is_enrolled"
+                        ? studentForm.is_enrolled === 1 ? "Enrolled" : "Not Enrolled"
+                        : studentForm[field]
+                    }
+                    editable={isEditingDetails && !["student_id", "program_code", "year_section", "student_status", "is_enrolled"].includes(field)}
+                    onChange={handleDetailChange}
+                    type={field === "birth_date" ? "date" : "text"}
+                  />
+                ))}
               </div>
 
-              {/* Editable Fields - single line per field */}
-              {[
-                ["First Name", "first_name"], ["Middle Name", "middle_name"], ["Last Name", "last_name"],
-                ["Contact Number", "contact_number"], ["Student ID", "student_id"], ["Permanent Address", "permanent_address"],
-                ["District", "congressional_district"], ["Gender", "gender"], ["Region", "region"],
-                ["Email", "email"], ["Course", "program_code"], ["Civil Status", "civil_status"],
-                ["Year & Section", "year_section"], ["Citizenship", "citizenship"], ["Birthday", "birth_date"],
-                ["Birth Place", "birthplace"], ["Religion", "religion"], ["Status", "student_status"],
-                ["Father's Name", "father_name"], ["Mother's Name", "mother_name"],
-                ["Father's Occupation", "father_occupation"], ["Mother's Occupation", "mother_occupation"],
-                ["Guardian's Name", "guardian_name"], ["Guardian Relation", "guardian_relationship"],
-                ["Guardian Contact", "guardian_contact"], ["Enrollment Status", "is_enrolled"]
-              ].map(([label, field]) => (
-                <ProfileField
-                  key={field}
-                  label={label}
-                  name={field}
-                  value={
-                    field === "program_code"
-                      ? `${studentForm.program_code} - ${studentForm.program_name}`
-                      : field === "year_section"
-                      ? `${studentForm.year_level} - ${studentForm.section}`
-                      : field === "is_enrolled"
-                      ? studentForm.is_enrolled === 1 ? "Enrolled" : "Not Enrolled"
-                      : studentForm[field]
-                  }
-                  editable={isEditingDetails && !["student_id", "program_code", "year_section", "student_status", "is_enrolled"].includes(field)}
-                  onChange={handleDetailChange}
-                  type={field === "birth_date" ? "date" : "text"}
-                />
-              ))}
-            </div>
-
-            {/* Actions */}
-            {userRole === "admin" && (
-            <div className="profile-actions">
-              {isEditingDetails ? (
-                <>
-                  <button className="btn btn-primary" onClick={handleSaveDetails} disabled={saving}>
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                  <button className="btn btn-cancel" onClick={() => {setIsEditingDetails(false); setStudentForm({...selectedStudent});}}>
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button className="btn btn-edit" onClick={toggleEditingDetails}>Edit Details</button>
+              {/* Actions */}
+              {userRole === "admin" && (
+                <div className="profile-actions">
+                  {isEditingDetails ? (
+                    <>
+                      <button className="btn btn-primary" onClick={handleSaveDetails} disabled={saving}>
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                      <button className="btn btn-cancel" onClick={() => { setIsEditingDetails(false); setStudentForm({ ...selectedStudent }); }}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button className="btn btn-edit" onClick={toggleEditingDetails}>Edit Details</button>
+                  )}
+                </div>
               )}
             </div>
-            )}
           </div>
-        </div>
 
-
-
-          {/* 🔹 Subject Records */}
-          <div className="modern-table-wrapper students-section">
+          {/* 🔹 Subject Records Table */}
+          <div className="modern-table-wrapper">
             <div className="subject-records-header">
               <h3>Subject Records</h3>
               {selectedStudent && userRole === "admin" && (
-                <button className="records-button" onClick={toggleEditingGrades}>
+                <button className="btn btn-edit" onClick={toggleEditingGrades}>
                   {isEditingGrades ? "Cancel Edit" : "Edit Records"}
                 </button>
               )}
@@ -346,58 +354,55 @@ export default function RecordsTab({
             {loading ? (
               <p>Loading subjects...</p>
             ) : (
-              <>
-                <div className="modern-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Year Group</th>
-                        <th>Section</th>
-                        <th>Code</th>
-                        <th>Description</th>
-                        <th>Units</th>
-                        <th>Grade</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries([...subjects].reduce((groups, subj) => {
+              <div className="modern-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Description</th>
+                      <th>Units</th>
+                      <th>Grade</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(
+                      [...subjects].reduce((groups, subj) => {
                         const key = `Year ${subj.year_level} - ${subj.semester === 1 ? "1st" : subj.semester === 2 ? "2nd" : subj.semester} Semester`;
                         if (!groups[key]) groups[key] = [];
                         groups[key].push(subj);
                         return groups;
-                      }, {})).map(([group, records], idx) => {
-                        const sortedRecords = records.sort((a, b) => a.subject_code.localeCompare(b.subject_code));
-                        return (
-                          <React.Fragment key={group}>
-                            {idx > 0 && <tr><td colSpan={9} className="semester-divider"></td></tr>}
-                            {sortedRecords.map((s, i) => {
-                              const editedRec = edited[s.subject_section];
-                              const gradeValue = editedRec ? editedRec.grade : s.grade ?? "";
-                              const statusPreview = computeStatusPreview(editedRec && editedRec.grade !== undefined ? editedRec.grade : s.grade, s.status);
+                      }, {})
+                    ).map(([group, records], idx) => {
+                      const sortedRecords = records.sort((a, b) => a.subject_code.localeCompare(b.subject_code));
+                      return (
+                        <React.Fragment key={group}>
+                          {idx > 0 && <tr><td colSpan={5} className="semester-divider"></td></tr>}
+                          <tr><td colSpan={5} className="group-cell">{group}</td></tr>
+                          {sortedRecords.map((s, i) => {
+                            const editedRec = edited[s.subject_section];
+                            const gradeValue = editedRec ? editedRec.grade : s.grade ?? "";
+                            const statusPreview = computeStatusPreview(editedRec && editedRec.grade !== undefined ? editedRec.grade : s.grade, s.status);
+                            return (
+                              <tr key={`${group}-${i}`}>
+                                <td>{s.subject_code}</td>
+                                <td>{s.subject_desc || "—"}</td>
+                                <td>{s.units || "—"}</td>
+                                <td>
+                                  {isEditingGrades ? (
+                                    <input className="grades-input" type="text" value={gradeValue ?? ""} onChange={e => handleGradeChange(s.subject_section, "grade", e.target.value)} />
+                                  ) : s.grade ?? "-"}
+                                </td>
+                                <td>{statusPreview ?? ""}</td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
 
-                              return (
-                                <tr key={`${group}-${i}`}>
-                                  {i === 0 && <td rowSpan={sortedRecords.length} className="group-cell"><strong>{group}</strong></td>}
-                                  <td>{s.subject_section}</td>
-                                  <td>{s.subject_code}</td>
-                                  <td>{s.subject_desc || "—"}</td>
-                                  <td>{s.units || "—"}</td>
-                                  <td>
-                                    {isEditingGrades ? (
-                                      <input className="grades-input" type="text" value={gradeValue ?? ""} onChange={e => handleGradeChange(s.subject_section, "grade", e.target.value)} />
-                                    ) : s.grade ?? "-"}
-                                  </td>
-                                  <td>{statusPreview ?? ""}</td>
-                                </tr>
-                              );
-                            })}
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
                 {isEditingGrades && hasEdits && (
                   <div className="profile-actions">
                     <button className="btn btn-primary" onClick={handleSaveGrades} disabled={saving}>
@@ -408,7 +413,47 @@ export default function RecordsTab({
                     </button>
                   </div>
                 )}
-              </>
+              </div>
+            )}
+          </div>
+
+          {/* 🔹 Top Stats Cards */}
+          <div className="grades-card avg">
+            Average Grade <p>{subjects.filter(s => s.grade).length > 0 ? (subjects.filter(s => s.grade).reduce((sum, s) => sum + parseFloat(s.grade || 0), 0) / subjects.filter(s => s.grade).length).toFixed(2) : "0"}</p>
+          </div>
+          <div className="grades-card total">
+            Total Subjects Taken <p>{subjects.filter(s => s.grade !== null).length}</p>
+          </div>
+          <div className="grades-card passed">
+            Passed <p>{subjects.filter(s => s.status === "Passed").length}</p>
+          </div>
+          <div className="grades-card failed">
+            Failed <p>{subjects.filter(s => s.status === "Failed").length}</p>
+          </div>
+
+          {/* 🔹 Graph */}
+          <div className="grades-card graph">
+            <h3>Grade Trend (Per Semester)</h3>
+            {subjects.filter(s => s.grade).length === 0 ? <p>No Grades detected</p> : (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={
+                  Object.values(
+                    subjects.filter(s => s.grade).reduce((acc, s) => {
+                      const sem = s.semester || "?";
+                      const key = `${s.year_level}-${sem}`;
+                      if (!acc[key]) acc[key] = { year_level: s.year_level, semester: sem, grades: [] };
+                      acc[key].grades.push(parseFloat(s.grade));
+                      return acc;
+                    }, {})
+                  ).map(entry => ({ name: `Year ${entry.year_level} Sem ${entry.semester}`, grade: (entry.grades.reduce((a, b) => a + b, 0) / entry.grades.length).toFixed(2) }))
+                }>
+                  <CartesianGrid stroke="#eee" strokeDasharray="5 5" />
+                  <XAxis dataKey="name" />
+                  <YAxis domain={[1, 5]} reversed />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="grade" stroke="#2563eb" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
             )}
           </div>
         </div>
@@ -419,6 +464,7 @@ export default function RecordsTab({
       )}
     </div>
   );
+
 };
 
 const ProfileField = ({ label, value, name, onChange, editable, type = "text" }) => {

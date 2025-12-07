@@ -266,7 +266,7 @@
         <div className="dashboard-analytics">
           <div className="dashboard-section">
             <h3>Students by Year</h3>
-            <BarChart width={500} height={300} data={yearData}>
+            <BarChart width="100%" height={300} data={yearData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" />
               <YAxis />

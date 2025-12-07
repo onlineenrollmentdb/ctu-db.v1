@@ -9,28 +9,6 @@ const EnrollmentTracker = ({ student, currentStep = 0, setCurrentStep, settings,
   const [visibleSteps, setVisibleSteps] = useState([]);
   const [activeConnector, setActiveConnector] = useState([]);
 
-  const reloadAfterDelay = () => {
-    setTimeout(() => {
-      if (!student || !settings) return;
-      API.get(`/enrollments/status/${student.student_id}`, {
-        params: {
-          semester: settings.current_semester,
-          academic_year: settings.current_academic_year,
-        },
-      })
-      .then((res) => {
-        if (setCurrentStep && res.data.status != null) {
-          setCurrentStep(res.data.status);
-        }
-      })
-      .catch((err) => console.error("Failed to fetch enrollment status:", err));
-    }, 2000);
-  };
-  const reloadPageIn2Sec = () => {
-    setTimeout(() => {
-      window.location.reload();
-    }, 3000);
-  };
 
 
   // WebSocket + initial fetch
@@ -72,6 +50,32 @@ const EnrollmentTracker = ({ student, currentStep = 0, setCurrentStep, settings,
       socket.disconnect();
     };
   }, [student, settings, setCurrentStep]);
+
+/* PILOT TESTING
+  const reloadAfterDelay = () => {
+    setTimeout(() => {
+      if (!student || !settings) return;
+      API.get(`/enrollments/status/${student.student_id}`, {
+        params: {
+          semester: settings.current_semester,
+          academic_year: settings.current_academic_year,
+        },
+      })
+      .then((res) => {
+        if (setCurrentStep && res.data.status != null) {
+          setCurrentStep(res.data.status);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch enrollment status:", err));
+    }, 2000);
+  };
+
+  const reloadPageIn2Sec = () => {
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+  };
+
 
   const handleSkipClearance = async () => {
     if (!student) return;
@@ -123,6 +127,7 @@ const EnrollmentTracker = ({ student, currentStep = 0, setCurrentStep, settings,
       addToast("Failed to confirm enrollment.", "error");
     }
   };
+*/
 
   const steps = [
     {
@@ -134,12 +139,6 @@ const EnrollmentTracker = ({ student, currentStep = 0, setCurrentStep, settings,
             <i className={`bi ${status > 0 ? "bi-check-circle-fill" : "bi-circle"}`}> Medical Form</i><br />
             <i className={`bi ${status > 0 ? "bi-check-circle-fill" : "bi-circle"}`}> Clearance Form</i>
           </span>
-          {!status && (
-            <span className="skip-step">
-              or click{" "}
-              <button className="clearance-link" onClick={handleSkipClearance}>here</button> to skip (Pilot Testing)
-            </span>
-          )}
         </div>
       )
     },
@@ -175,12 +174,6 @@ const EnrollmentTracker = ({ student, currentStep = 0, setCurrentStep, settings,
               <i className={`bi ${status > 0 ? "bi-check-circle-fill" : "bi-circle"}`}> Dean Approval</i>
             </span><br />
             {status > 2 && <span className="mt2">Your Enrollment Form has been confirmed!!</span>}
-            {status === 2 && (
-              <span className="skip-step">
-                or click{" "}
-                <button className="clearance-link" onClick={handleEnrollmentSkip}>here</button> to skip (Pilot Testing)
-              </span>
-            )}
           </div>
         );
       }
