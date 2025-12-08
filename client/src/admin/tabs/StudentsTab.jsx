@@ -849,11 +849,16 @@ export default function StudentsTab({
                 onChange={(e) => setProgramName(e.target.value)}
               />
 
-              <input
-                type="number"
-                placeholder="Department ID"
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
+              <CustomSelect
+                options={[
+                  { value: 1, label: "CoTE" },
+                  { value: 2, label: "CoED" },
+                  { value: 3, label: "BSHM" },
+                  { value: 4, label: "BSFi" },
+                ]}
+                value={departmentId || ""}
+                onChange={(val) => setDepartmentId(val ? Number(val) : "")}
+                placeholder="Select Department"
               />
             </div>
 
