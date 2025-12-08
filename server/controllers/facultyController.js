@@ -185,27 +185,29 @@ exports.getFacultySubjects = async (req, res) => {
 exports.updateFacultySubjects = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subjects } = req.body; // array of { subject_code, year_level, section, academic_year, semester }
+    const { subjects } = req.body;
 
     if (!Array.isArray(subjects)) {
       return res.status(400).json({ error: "Invalid subjects array" });
     }
+
+    // Sanitize helper
+    const safe = (v) => (v === undefined || v === "" ? null : v);
 
     // Remove existing assignments
     await db.execute("DELETE FROM faculty_subjects WHERE faculty_id = ?", [id]);
 
     // Insert new assignments
     if (subjects.length > 0) {
-      // Build placeholders dynamically for all rows
       const placeholders = subjects.map(() => "(?, ?, ?, ?, ?, ?)").join(", ");
-      // Flatten values: [faculty_id, subject_code, year_level, section, academic_year, semester, ...]
+
       const values = subjects.flatMap((s) => [
-        id,
-        s.subject_code,
-        s.year_level,
-        s.section || null,
-        s.academic_year || null,
-        s.semester || null,
+        safe(id),
+        safe(s.subject_code),
+        safe(s.year_level),
+        safe(s.section),
+        safe(s.academic_year),
+        safe(s.semester),
       ]);
 
       const sql = `INSERT INTO faculty_subjects (faculty_id, subject_code, year_level, section, academic_year, semester) VALUES ${placeholders}`;
@@ -218,5 +220,4 @@ exports.updateFacultySubjects = async (req, res) => {
     res.status(500).json({ error: "Failed to update faculty subjects" });
   }
 };
-
 

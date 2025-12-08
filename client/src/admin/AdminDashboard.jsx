@@ -311,9 +311,10 @@ export default function AdminDashboard() {
               fetchSettings={fetchSettings}
               loading={loading}
               setLoading={setLoading}
+              setActiveTab={setActiveTab}
               currentUser={user}
               role={userRole}
-              admin={admin}   
+              admin={admin}
               setAdmin={setAdmin}
             />
           )}

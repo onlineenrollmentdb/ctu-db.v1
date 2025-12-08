@@ -16,7 +16,6 @@ export default function SettingsTab({
   settings,
   setSettings,
   fetchSettings,
-  loading,
   setLoading,
   currentUser,
   role,
@@ -38,8 +37,10 @@ export default function SettingsTab({
     first_name: currentUser?.first_name || "",
     last_name: currentUser?.last_name || "",
     email: currentUser?.email || "",
-    role: currentUser?.role || "",
+    role: currentUser?.role || "NA",
+    department_id: currentUser?.department_id || null,
   });
+
 
   const handleFacultyChange = (key, value) => {
     setFacultyForm((prev) => ({ ...prev, [key]: value }));
@@ -48,7 +49,7 @@ export default function SettingsTab({
   const handleSaveFaculty = async () => {
     try {
       setLoading(true);
-      await API.put(`/faculty/update/${currentUser.faculty_id}`, facultyForm);
+      await API.put(`/faculty/${currentUser.faculty_id}`, facultyForm);
 
       localStorage.setItem(
         "user",
@@ -57,6 +58,9 @@ export default function SettingsTab({
 
       addToast("Profile updated successfully!", "success");
       setFacultyEditMode(false);
+
+      // Refresh the page to get the latest data
+      window.location.reload();
     } catch (err) {
       console.error(err);
       addToast("Error updating profile.", "error");
@@ -64,6 +68,7 @@ export default function SettingsTab({
       setLoading(false);
     }
   };
+
 
   // ======== SETTINGS HANDLERS ========
   const handleChange = (key, date) => {
@@ -311,7 +316,7 @@ export default function SettingsTab({
                 <p><b>First Name:</b> {facultyForm.first_name}</p>
                 <p><b>Last Name:</b> {facultyForm.last_name}</p>
                 <p><b>Email:</b> {facultyForm.email}</p>
-                <p><b>Role:</b> {facultyForm.faculty_role}</p>
+                <p><b>Role:</b> {facultyForm.role}</p>
 
                 <button
                   className="btn btn-primary"
