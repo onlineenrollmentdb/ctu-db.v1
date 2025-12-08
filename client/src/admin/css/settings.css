@@ -101,7 +101,9 @@
   border: 1px solid #bbb;
   border-radius: 6px;
 }
-
+.admin-modal{
+  min-width: 500px;
+}
 /* Toggle Switch */
 .switch {
   position: relative;
