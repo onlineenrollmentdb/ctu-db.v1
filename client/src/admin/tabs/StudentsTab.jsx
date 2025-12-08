@@ -726,6 +726,12 @@ export default function StudentsTab({
           <div className="modal-box">
             <h3>{editingStudent ? "Edit Student" : "Add Student"}</h3>
             <div className="modal-grid">
+                <input
+                  type="text"
+                  placeholder="Student ID"
+                  value={form.student_id}
+                  onChange={(e) => handleChange("student_id", e.target.value)}
+                />
               <input
                 type="text"
                 placeholder="First Name"
