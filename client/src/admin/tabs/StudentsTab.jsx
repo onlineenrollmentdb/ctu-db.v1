@@ -547,9 +547,11 @@ export default function StudentsTab({
                           >
                             <span>{sec.name}</span>
                             <span>{sec.count} Students</span>
+                            {(isAdmin || isDean) && (
+                              <span className="clear">{clearedCount} Cleared</span>
+                            )}
                             {isAdmin && (
                               <>
-                                <span className="clear">{clearedCount} Cleared</span>
                                 <span className="enroll">{enrolledCount} Enrolled</span>
                               </>
                             )}
