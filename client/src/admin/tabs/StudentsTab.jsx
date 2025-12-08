@@ -686,16 +686,18 @@ export default function StudentsTab({
                                       <i className="bi bi-trash"></i>
                                     </button>
                                   )}
-                                  <button
-                                    onClick={() => toggleClearance(s)}
-                                    data-tooltip={clearance ? "Revoke Clearance" : "Confirm Clearance"}
-                                  >
-                                    {clearance ? (
-                                      <i className="bi bi-x-circle text-red-500"></i>
-                                    ) : (
-                                      <i className="bi bi-check-circle text-green-500"></i>
-                                    )}
-                                  </button>
+                                  {clearanceRecords[s.student_id]?.enrollment_status <= 1 && (
+                                    <button
+                                      onClick={() => toggleClearance(s)}
+                                      data-tooltip={clearance ? "Revoke Clearance" : "Confirm Clearance"}
+                                    >
+                                      {clearance ? (
+                                        <i className="bi bi-x-circle text-red-500"></i>
+                                      ) : (
+                                        <i className="bi bi-check-circle text-green-500"></i>
+                                      )}
+                                    </button>
+                                  )}
                                 </>
                               )}
                             </div>
