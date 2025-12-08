@@ -251,7 +251,7 @@ export default function AdminDashboard() {
               userRole={userRole}
             />
           )}
-          {activeTab === "enrollment" && userRole === "admin" && (
+          {activeTab === "enrollment" && (
             <EnrollmentTab
               students={students}
               setStudents={setStudents}
@@ -278,9 +278,10 @@ export default function AdminDashboard() {
               userRole={userRole}
             />
           )}
-          {activeTab === "faculty" && userRole === "admin" && (
+          {activeTab === "faculty" && (
             <FacultyTab
               settings={settings}
+              currenUser={user}
               fetchSettings={fetchSettings}
               faculty={faculty}
               setFaculty={setFaculty}

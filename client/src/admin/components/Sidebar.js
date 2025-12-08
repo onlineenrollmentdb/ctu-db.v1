@@ -13,20 +13,21 @@ export default function Sidebar({
 }) {
 
   const isAdmin = userRole === "admin";
-
+  const isDean = currentUser?.role === 'dean';
   const tabs = [
     { key: "dashboard", label: "Dashboard" },
     { key: "records", label: "Records" },
     { key: "subjects", label: "Subjects" },
     { key: "students", label: "Students" },
+    ...(isAdmin || isDean
+      ? [{ key: "enrollment", label: "Enrollment" }] // Only Admin or Dean
+      : []),
     ...(isAdmin
-      ? [
-          { key: "enrollment", label: "Enrollment" },
-          { key: "faculty", label: "Faculty" },
-        ]
+      ? [{ key: "faculty", label: "Faculty" }] // Only Admin
       : []),
     { key: "settings", label: "Settings" },
   ];
+
 
   return (
     <aside className={`admin-sidebar ${isSidebarOpen ? "show" : ""}`}>
