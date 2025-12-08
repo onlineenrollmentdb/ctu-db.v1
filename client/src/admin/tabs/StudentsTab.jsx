@@ -302,29 +302,33 @@ export default function StudentsTab({
     try {
       const current = clearanceRecords[student.student_id]?.cleared || false;
 
-      // Call your clearance update endpoint
-      const response = await API.put("/clearance/update", {
+      // Call the API to update clearance
+      await API.put("/clearance/update", {
         student_id: student.student_id,
-        is_cleared: !current,
-        semester: settings.current_semester ,
-        academic_year: settings.current_academic_year
+        is_cleared: !current, // toggle value
+        academic_year: settings.current_academic_year,
+        semester: settings.current_semester,
       });
 
-      // Update the UI immediately
+      // Update local state
       setClearanceRecords((prev) => ({
         ...prev,
         [student.student_id]: {
           cleared: !current,
-          enrollment_status: response.data.enrollment_status
-        }
+          enrollment_status: !current ? 1 : 0, // 1 if cleared, 0 if revoked
+        },
       }));
-
-      addToast(`Clearance ${!current ? "confirmed" : "revoked"} successfully ✅`, "success");
+      addToast(
+        `Clearance ${!current ? "confirmed" : "revoked"} successfully ✅`,
+        "success"
+      );
     } catch (err) {
       console.error(err);
       addToast("Failed to update clearance ❌", "error");
     }
   };
+
+
 
   const openModal = (student = null) => {
     setEditingStudent(student);
