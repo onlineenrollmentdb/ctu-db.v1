@@ -38,7 +38,7 @@ export default function SettingsTab({
     first_name: currentUser?.first_name || "",
     last_name: currentUser?.last_name || "",
     email: currentUser?.email || "",
-    faculty_role: currentUser?.role || "",
+    role: currentUser?.role || "",
   });
 
   const handleFacultyChange = (key, value) => {
@@ -48,10 +48,7 @@ export default function SettingsTab({
   const handleSaveFaculty = async () => {
     try {
       setLoading(true);
-      await API.put(`/faculty/update-profile`, {
-        faculty_id: currentUser.faculty_id,
-        ...facultyForm,
-      });
+      await API.put(`/faculty/update/${currentUser.faculty_id}`, facultyForm);
 
       localStorage.setItem(
         "user",
@@ -357,7 +354,7 @@ export default function SettingsTab({
                   <label>Role</label>
                   <input
                     type="text"
-                    value={facultyForm.faculty_role}
+                    value={facultyForm.role}
                     disabled
                   />
                 </div>

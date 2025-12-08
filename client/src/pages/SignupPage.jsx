@@ -272,7 +272,7 @@ const SignupPage = () => {
 
             {confirmError && <p className="invalid">{confirmError}</p>}
 
-            <button className="btn bt-primary" type="submit" disabled={loading}>
+            <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? 'Saving...' : 'Set Password'}
             </button>
           </>
