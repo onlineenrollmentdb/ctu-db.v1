@@ -7,6 +7,9 @@ import Sidebar from "./components/Sidebar";
 import './css/admin.css';
 import './css/student.css';
 import './css/settings.css';
+import "../css/ProfilePage.css";
+import "../css/GradesPage.css";
+
 
 // Lazy-loaded tabs
 const DashboardTab = React.lazy(() => import("./tabs/DashboardTab"));
@@ -25,11 +28,11 @@ export default function AdminDashboard() {
   // Split state for performance
   const [settings, setSettings] = useState({ current_academic_year: "", current_semester: "" });
   const [programs, setPrograms] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [students, setStudents] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [faculty, setFaculty] = useState([]);
   const [admin, setAdmin] = useState(null);
-  const [departments, setDepartments] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterProgram, setFilterProgram] = useState("");
@@ -256,6 +259,7 @@ export default function AdminDashboard() {
               filterYear={filterYear}
               setYearFilter={setFilterYear}
               programs={programs}
+              departments={departments}
             />
           )}
           {activeTab === "subjects" && (

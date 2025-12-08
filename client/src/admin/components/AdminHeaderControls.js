@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CustomSelect } from "../../components/customSelect";
-import API from "../../api/api";
 import "../css/header.css";
 
 export const AdminHeaderControls = ({
@@ -27,14 +26,12 @@ export const AdminHeaderControls = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const wrapperRef = useRef(null);
-  const [maxSection, setMaxSection] = useState("A");
   const didSyncRef = useRef(false);
 
   const showProgramFilter = ["dashboard", "enrollment", "subjects", "students"].includes(tab);
   const showYearFilter = ["enrollment", "subjects", "students"].includes(tab);
   const showDepartmentFilter = tab === "faculty";
   const showStatusFilter = ["students", "enrollment"].includes(tab);
-  const showSectionFilter = ["students", "enrollment"].includes(tab);
 
   const getSafeFullName = (s) =>
     `${s.first_name || ""} ${s.middle_name || ""} ${s.last_name || ""}`.trim();
@@ -55,30 +52,6 @@ export const AdminHeaderControls = ({
       didSyncRef.current = true; // mark as synced
     }
   }, [selectedStudent, tab, setSearchQuery, handleSelectStudent]);
-  // Fetch max section when programFilter or filterYear changes
-  useEffect(() => {
-    const fetchMaxSection = async () => {
-      if (!programFilter || !filterYear) {
-        setMaxSection("A");
-        return;
-      }
-
-      try {
-        const res = await API.get(
-          `/programs/departments/${programFilter}/${filterYear}/max-section`
-        );
-        setMaxSection(res.data.max_section || "A");
-
-        if (filterSection && filterSection > res.data.max_section) {
-          setSectionFilter("");
-        }
-      } catch (err) {
-        console.error("Failed to fetch max section:", err);
-        setMaxSection("A");
-      }
-    };
-    fetchMaxSection();
-  }, [programFilter, filterYear, filterSection, setSectionFilter]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -89,6 +62,15 @@ export const AdminHeaderControls = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (programs.length > 0 && programFilter === "") {
+      const bsit = programs.find(p => p.program_code === "BSIT");
+      if (bsit) {
+        setProgramFilter(bsit.program_id);
+      }
+    }
+  }, [programs, programFilter, setProgramFilter]);
 
   useEffect(() => {
     if (tab === "records" && filteredStudents.length > 0) {
@@ -203,13 +185,13 @@ export const AdminHeaderControls = ({
         )}
         {showProgramFilter && (
           <CustomSelect
-            options={[
-              { value: "", label: "All Programs" },
-              ...programs.map((p) => ({ value: p.program_id, label: p.program_code })),
-            ]}
-            value={programFilter || ""}
+            options={programs.map((p) => ({
+              value: p.program_id,
+              label: p.program_code,
+            }))}
+            value={programFilter}
             onChange={(val) => setProgramFilter(val ? Number(val) : "")}
-            placeholder="All Programs"
+            placeholder="Select Program"
           />
         )}
         {showYearFilter && (
@@ -224,23 +206,6 @@ export const AdminHeaderControls = ({
             value={filterYear || ""}
             onChange={handleYearChange}
             placeholder="All Years"
-          />
-        )}
-        {showSectionFilter && (
-          <CustomSelect
-            options={[
-              { value: "", label: "All Sections" },
-              ...Array.from(
-                { length: maxSection.charCodeAt(0) - 64 },
-                (_, i) => {
-                  const val = String.fromCharCode(65 + i);
-                  return { value: val, label: val };
-                }
-              ),
-            ]}
-            value={filterSection || ""}
-            onChange={(val) => setSectionFilter(val)}
-            placeholder="All Sections"
           />
         )}
         {showStatusFilter && (

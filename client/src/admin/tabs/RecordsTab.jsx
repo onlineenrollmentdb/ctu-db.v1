@@ -4,8 +4,6 @@ import AdminHeaderControls from "../components/AdminHeaderControls";
 import { useToast } from "../../context/ToastContext";
 import { connectSocket, getSocket, disconnectSocket } from "../../socket";
 import defaultUser from "../../img/default_user.webp";
-import "../../css/ProfilePage.css";
-import "../../css/GradesPage.css";
 import "../css/records.css";
 import {
   LineChart,

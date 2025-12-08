@@ -5,10 +5,20 @@ import autoTable from "jspdf-autotable";
 import API from "../../api/api";
 import { useToast } from "../../context/ToastContext";
 import defaultUser from "../../img/default_user.webp";
-import logo from "../../img/ctu_logo.png"
 import "../css/enrollment.css";
+import logo from "../../img/ctu_logo.png";
+import bpLogo from "../../img/bp_logo.png";
 
-export default function EnrollmentTab({ settings, filterYear, setYearFilter, programs, students, setStudents }) {
+
+export default function EnrollmentTab({
+  settings,
+  filterYear,
+  setYearFilter,
+  programs,
+  departments,
+  students,
+  setStudents
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [programFilter, setProgramFilter] = useState("");
@@ -16,6 +26,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
   const [loading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentSubjects, setStudentSubjects] = useState([]);
+  const [studentDetailsCache, setStudentDetailsCache] = useState({});
   const [activeTab, setActiveTab] = useState("pending");
 
   const studentsPerPage = 20;
@@ -23,202 +34,175 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
 
   const serverURL = process.env.REACT_APP_SOCKET;
 
-  const handleExportPDF = async () => {
-    if (activeTab !== "enrolled") {
-      addToast("You can only export students from the Enrolled tab ❌", "error");
+
+const handleExportPDF = async () => {
+  if (activeTab !== "enrolled") {
+    addToast("You can only export students from the Enrolled tab ❌", "error");
+    return;
+  }
+
+  let exportStudents = [];
+
+  // 🔹 Use ONLY what is currently displayed in the table
+  const filteredBase = currentStudents;
+
+  // 🔹 Determine Program and Department Names
+  let selectedProgram = null;
+  let selectedDepartment = null;
+
+  if (programFilter) {
+    selectedProgram = programs.find(p => p.program_id === Number(programFilter));
+    if (selectedProgram) {
+      selectedDepartment = departments.find(d => d.department_id === selectedProgram.department_id);
+    }
+  }
+
+  // ---------- STATUS FILTERING ----------
+  if (statusFilter === "Regular") {
+    const regularList = filteredBase.filter(s => s.student_status === "Regular");
+    if (regularList.length === 0) {
+      addToast("No Regular students to export ❌", "error");
+      return;
+    }
+    exportStudents = regularList;
+  }
+  else if (statusFilter === "Irregular") {
+    const irregularList = filteredBase.filter(s => s.student_status === "Irregular");
+    if (irregularList.length === 0) {
+      addToast("No Irregular students to export ❌", "error");
+      return;
+    }
+    exportStudents = irregularList;
+  }
+  else {
+    if (filteredBase.length === 0) {
+      addToast("No enrolled students to export ❌", "error");
+      return;
+    }
+    exportStudents = filteredBase;
+  }
+
+  // ---------- FETCH SUBJECTS ----------
+  try {
+    await Promise.all(
+      exportStudents.map((s) =>
+        API.get(`admin/students/${s.student_id}/subjects`, {
+          params: { academic_year: s.academic_year, semester: s.semester },
+        })
+          .then((res) => (s.subjects = res.data.subjects || []))
+          .catch(() => (s.subjects = []))
+      )
+    );
+  } catch (err) {
+    console.error("Error fetching subjects for export:", err);
+  }
+
+  // 🧾 START PDF
+  const doc = new jsPDF("p", "mm", "a4");
+
+  // 🔹 Helper to load images safely
+  const getBase64Image = async (imgPath) => {
+    try {
+      const res = await fetch(imgPath);
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.warn("Failed to load image:", imgPath, err);
+      return null;
+    }
+  };
+
+  const ctuLogoBase64 = await getBase64Image(logo);
+  const bpLogoBase64 = await getBase64Image(bpLogo);
+
+  if (ctuLogoBase64) doc.addImage(ctuLogoBase64, "PNG", 10, 10, 25, 25);
+  if (bpLogoBase64) doc.addImage(bpLogoBase64, "PNG", 170, 10, 25, 25);
+
+  // ---------- HEADER ----------
+  doc.setFontSize(10);
+  doc.text("Republic of the Philippines", 105, 12, { align: "center" });
+  doc.text("CEBU TECHNOLOGICAL UNIVERSITY", 105, 16, { align: "center" });
+  doc.text("DAANBANTAYAN CAMPUS", 105, 20, { align: "center" });
+  doc.text("Agujo, Daanbantayan, Cebu", 105, 24, { align: "center" });
+  doc.text("Website: http://www.ctu.edu.ph E-mail: info-daanbantayan@ctu.edu.ph", 105, 28, { align: "center" });
+  doc.text("Phone: +6332 437 8526 loc. 102/316 1905", 105, 32, { align: "center" });
+
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+
+  doc.text((selectedDepartment?.department_name || "ALL DEPARTMENTS").toUpperCase(),105,40,{ align: "center" });
+  doc.text((selectedProgram?.program_name || "ALL PROGRAMS").toUpperCase(),105,44,{ align: "center" });
+
+  const reportY = 52;
+  doc.setFontSize(10);
+  doc.text(`Students Status: ${statusFilter || "All"}`, 14, reportY);
+  doc.text(`A.Y. ${settings?.current_academic_year}`, 105, reportY, { align: "center" });
+  doc.text(`Semester: ${settings?.current_semester}`, 200 - 14, reportY, { align: "right" });
+
+  // ---------- TABLE ----------
+  let tableColumn = [];
+  let tableRows = [];
+
+  if (statusFilter === "Irregular") {
+    tableColumn = ["ID","Fullname","Year","Section","Program","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10"];
+    tableRows = exportStudents.map((s) => {
+      const subjects = (s.subjects || []).map(sub => sub.subject_code || "-");
+      const padded = [...subjects, ...Array(10 - subjects.length).fill("-")].slice(0, 10);
+      return [
+        s.student_id,
+        `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
+        s.year_level,
+        s.section || "-",
+        s.program_code || "-",
+        ...padded
+      ];
+    });
+  } else {
+    tableColumn = ["Student ID", "Fullname", "Year", "Section", "Program"];
+    tableRows = exportStudents.map((s) => [
+      s.student_id,
+      `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
+      s.year_level,
+      s.section || "-",
+      s.program_code || "-",
+    ]);
+  }
+
+  autoTable(doc, {
+    startY: 55,
+    head: [tableColumn],
+    body: tableRows,
+    styles: { fontSize: statusFilter === "Irregular" ? 7 : 9 },
+    headStyles: { fillColor: [22, 160, 133] },
+  });
+
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  doc.save(`${today}_EnrolledStudents.pdf`);
+
+  addToast("PDF Export successful ✅", "success");
+};
+
+
+
+
+  // 🔹 View details modal + fetch subjects
+
+  const handleViewDetails = async (student) => {
+    if (studentDetailsCache[student.student_id]) {
+      setSelectedStudent(studentDetailsCache[student.student_id]);
       return;
     }
 
-    let exportStudents = [];
-
-    if (statusFilter === "Regular") {
-      if (regularStudents === 0) {
-        addToast("No Regular students to export ❌", "error");
-        return;
-      }
-      exportStudents = students.filter(
-        (s) => s.enrollment_status === 3 && s.student_status === "Regular"
-      );
-    } else if (statusFilter === "Irregular") {
-      if (irregularStudents === 0) {
-        addToast("No Irregular students to export ❌", "error");
-        return;
-      }
-      exportStudents = students.filter(
-        (s) => s.enrollment_status === 3 && s.student_status === "Irregular"
-      );
-    } else {
-      if (totalEnrolled === 0) {
-        addToast("No enrolled students to export ❌", "error");
-        return;
-      }
-      exportStudents = students.filter((s) => s.enrollment_status === 3);
-    }
-
-    // 🔹 Fetch subjects for all students in parallel
     try {
-      await Promise.all(
-        exportStudents.map((s) =>
-          API.get(`admin/students/${s.student_id}/subjects`, {
-            params: { academic_year: s.academic_year, semester: s.semester },
-          })
-            .then((res) => (s.subjects = res.data.subjects || []))
-            .catch(() => (s.subjects = []))
-        )
-      );
+      const res = await API.get(`/students/${student.student_id}`);
+      setStudentDetailsCache(prev => ({ ...prev, [student.student_id]: res.data }));
+      setSelectedStudent(res.data);
     } catch (err) {
-      console.error("Error fetching subjects for export:", err);
-    }
-
-    // 🧾 START PDF
-    const doc = new jsPDF("p", "mm", "a4");
-
-    // 🔹 Convert logo to Base64
-    const logoBase64 = await fetch(logo)
-      .then((res) => res.blob())
-      .then(
-        (blob) =>
-          new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-          })
-      );
-
-    // 🔹 Add Logo
-    doc.setFillColor(255, 255, 255); // white
-    doc.rect(10, 10, 20, 20, 'F'); // fill a white rectangle behind logo
-    doc.addImage(logoBase64, "PNG", 10, 10, 20, 20);
-
-    // 🔹 Header text
-    doc.setFontSize(16);
-    doc.text("Cebu Technological University", 40, 18);
-
-    doc.setFontSize(13);
-    doc.text("Student Enrollment List", 40, 26);
-
-    doc.setFontSize(10);
-    doc.text(`Academic Year: ${settings?.current_academic_year}`, 14, 40);
-    doc.text(`Semester: ${settings?.current_semester}`, 14, 45);
-    doc.text(
-      `Status: Enrolled ${statusFilter ? `- ${statusFilter}` : ""}`,
-      14,
-      50
-    );
-
-    let tableColumn = [];
-    let tableRows = [];
-
-    // ================================
-    //      REGULAR EXPORT FORMAT
-    // ================================
-    if (statusFilter === "Regular") {
-      tableColumn = ["Student ID", "Fullname", "Year", "Section", "Program"];
-      tableRows = exportStudents.map((s) => [
-        s.student_id,
-        `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
-        s.year_level,
-        s.section || "-",
-        s.program_code || "-",
-      ]);
-    }
-    // ================================
-    //     IRREGULAR EXPORT FORMAT
-    // ================================
-    else if (statusFilter === "Irregular") {
-      tableColumn = [
-        "ID",
-        "Fullname",
-        "Year",
-        "Section",
-        "Program",
-        "S1",
-        "S2",
-        "S3",
-        "S4",
-        "S5",
-        "S6",
-        "S7",
-        "S8",
-        "S9",
-        "S10",
-      ];
-
-      tableRows = exportStudents.map((s) => {
-        const subjects = (s.subjects || []).map((sub) => sub.subject_code || "-");
-        const padded = [...subjects, ...Array(10 - subjects.length).fill("-")].slice(
-          0,
-          10
-        );
-
-        return [
-          s.student_id,
-          `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
-          s.year_level,
-          s.section || "-",
-          s.program_code || "-",
-          ...padded,
-        ];
-      });
-    }
-    // ================================
-    //   DEFAULT ALL ENROLLED EXPORT
-    // ================================
-    else {
-      tableColumn = ["Student ID", "Fullname", "Year", "Section", "Program"];
-      tableRows = exportStudents.map((s) => [
-        s.student_id,
-        `${s.last_name}, ${s.first_name} ${s.middle_name || ""}`,
-        s.year_level,
-        s.section || "-",
-        s.program_code || "-",
-      ]);
-    }
-
-    // 📌 Render table
-    autoTable(doc, {
-      startY: 55,
-      head: [tableColumn],
-      body: tableRows,
-      styles: { fontSize: statusFilter === "Irregular" ? 7 : 9 },
-      headStyles: { fillColor: [22, 160, 133] },
-    });
-
-    // 📌 Save file
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    doc.save(`${today}_EnrolledStudents.pdf`);
-
-    addToast("PDF Export successful ✅", "success");
-  };
-
-  // 🔹 View details modal + fetch subjects
-  const handleViewDetails = async (student) => {
-    setSelectedStudent(student);
-
-    try {
-      // 👉 send semester + academic year so backend fetches correct enrollment_id
-      const res = await API.get(
-        `admin/students/${student.student_id}/subjects`,
-        {
-          params: {
-            academic_year: student.academic_year,
-            semester: student.semester,
-          }
-        }
-      );
-
-      setStudentSubjects(res.data.subjects || []);
-
-      setSelectedStudent((prev) => ({
-        ...prev,
-        academic_year: res.data.academic_year,
-        semester: res.data.semester,
-        status: res.data.status,
-      }));
-    } catch (err) {
-      console.error("Error fetching subject records:", err);
-      addToast("Failed to load subject records ❌", "error");
-      setStudentSubjects([]);
+      console.error("Failed to fetch student details:", err);
     }
   };
 
@@ -283,7 +267,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
       fullName.includes(searchQuery.toLowerCase());
 
     // 🔹 Filter by program
-    const matchesProgram = !programFilter || s.program_name === programFilter;
+    const matchesProgram = !programFilter || s.program_id === Number(programFilter);
 
     // 🔹 Filter by year
     const matchesYear = !filterYear || s.year_level === Number(filterYear);
@@ -304,6 +288,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
   }, [searchQuery, filterYear, programFilter, statusFilter]);
 
   return (
+    <>
     <div className="enrollment-tab" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Header Controls */}
       <AdminHeaderControls
@@ -363,7 +348,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
                         <td>{s.last_name}, {s.first_name} {s.middle_name || ""}</td>
                         <td>{s.year_level}</td>
                         <td>{s.section || "-"}</td>
-                        <td>{s.program_name || "-"}</td>
+                        <td>{s.program_code || "-"}</td>
                         <td>
                           <button className="btn btn-primary" onClick={() => handleViewDetails(s)}>
                             View
@@ -438,27 +423,31 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
         </div>
       </div>
 
+    </div>
       {/* Enrollment Details Modal */}
       {selectedStudent && (
         <div className="modal-overlay" onClick={handleCloseOutside}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={handleClose}>X</button>
 
-            <h2>Enrollment Details</h2>
+            <h2>Enrollment Details Hayyssss</h2>
 
             <div className="student-info-grid">
-              {/* Profile Picture */}
-              <div className="profile-picture">
+            {/* Profile Picture */}
+            <div className="profile-picture">
+              <div className="profile-pic-wrapper">
                 <img
                   src={
                     selectedStudent.profile_picture
-                      ? `${serverURL}/${selectedStudent.profile_picture.replace(/^\/+/, "")}`
+                      ? `${serverURL.replace(/\/$/, "")}/${selectedStudent.profile_picture.replace(/^\//, "")}`
                       : defaultUser
                   }
                   alt="Profile"
-                  className="profile-image"
+                  className="profile-img"
                 />
               </div>
+            </div>
+
 
               {/* Basic Info */}
               <div className="form-input first-name"><strong>First Name:</strong> {selectedStudent.first_name || "-"}</div>
@@ -466,7 +455,7 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
               <div className="form-input last-name"><strong>Last Name:</strong> {selectedStudent.last_name || "-"}</div>
               <div className="form-input student-id"><strong>Student ID:</strong> {selectedStudent.student_id}</div>
               <div className="form-input year-section"><strong>Year & Section:</strong> {selectedStudent.year_level} {selectedStudent.section || "-"}</div>
-              <div className="form-input course"><strong>Course:</strong> {selectedStudent.program_name || "-"}</div>
+              <div className="form-input course"><strong>Course:</strong> {selectedStudent.program_code || "-"}</div>
               <div className="form-input status"><strong>Status:</strong> {selectedStudent.student_status || "-"}</div>
 
               {/* Subjects Enrolled */}
@@ -515,6 +504,6 @@ export default function EnrollmentTab({ settings, filterYear, setYearFilter, pro
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
