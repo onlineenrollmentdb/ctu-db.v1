@@ -497,19 +497,27 @@ exports.addStudent = async (req, res) => {
       year_level,
       student_status,
       program_id,
-      student_id,
+      student_id, // optional
     } = req.body;
 
-    // Ensure numeric values
+    // Convert numeric values
     const programIdNum = Number(program_id);
-    const studentIdNum = Number(student_id);
 
+    // If student_id was provided, convert to number. If empty/null, leave it undefined → AUTO INCREMENT
+    const studentIdNum = student_id ? Number(student_id) : undefined;
+
+    const defaultPassword =
+      "$2b$10$x279Jjm2PXHksVoNCsXkuugo8FNtvLaFXz9unnkb8XCkFcOMbjBle";
+
+    // Insert student (student_id = NULL → triggers AUTO INCREMENT)
     const [result] = await db.execute(
-      `INSERT INTO students
-       (student_id, first_name, middle_name, last_name, email, year_level, student_status, program_id, password)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `
+      INSERT INTO students
+        (student_id, first_name, middle_name, last_name, email, year_level, student_status, program_id, password)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
       [
-        studentIdNum,
+        studentIdNum ?? null, // null = auto increment
         first_name,
         middle_name || null,
         last_name,
@@ -517,25 +525,34 @@ exports.addStudent = async (req, res) => {
         year_level,
         student_status,
         programIdNum,
-        password = "$2b$10$x279Jjm2PXHksVoNCsXkuugo8FNtvLaFXz9unnkb8XCkFcOMbjBle",
+        defaultPassword,
       ]
     );
 
-    // Fetch the newly added student
+    // Determine final student_id (either provided or auto-generated)
+    const finalStudentId = studentIdNum ?? result.insertId;
+
+    // Fetch inserted student
     const [rows] = await db.execute(
-      `SELECT s.*, p.program_code
-       FROM students s
-       LEFT JOIN programs p ON s.program_id = p.program_id
-       WHERE s.student_id = ?`,
-      [studentIdNum]
+      `
+      SELECT s.*, p.program_code
+      FROM students s
+      LEFT JOIN programs p ON s.program_id = p.program_id
+      WHERE s.student_id = ?
+      `,
+      [finalStudentId]
     );
 
-    res.json({ message: "Student added successfully", student: rows[0] });
+    res.json({
+      message: "Student added successfully",
+      student: rows[0],
+    });
   } catch (err) {
     console.error("addStudent error:", err);
     res.status(500).json({ error: "Failed to add student" });
   }
 };
+
 // Update an existing student
 exports.updateStudent = async (req, res) => {
   try {
