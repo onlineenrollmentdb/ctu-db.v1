@@ -36,7 +36,10 @@ export function CustomSelect({ options, value, onChange, placeholder = "Select..
           <div
             key={opt.value}
             className="option"
-            onClick={() => handleSelect(opt.value)}
+            onClick={(e) => {
+                e.stopPropagation();
+                handleSelect(opt.value);
+              }}
           >
             {opt.label}
           </div>

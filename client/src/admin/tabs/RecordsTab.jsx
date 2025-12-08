@@ -344,11 +344,6 @@ export default function RecordsTab({
           <div className="modern-table-wrapper">
             <div className="subject-records-header">
               <h3>Subject Records</h3>
-              {selectedStudent && userRole === "admin" && (
-                <button className="btn btn-edit" onClick={toggleEditingGrades}>
-                  {isEditingGrades ? "Cancel Edit" : "Edit Records"}
-                </button>
-              )}
             </div>
 
             {loading ? (
@@ -403,18 +398,26 @@ export default function RecordsTab({
                   </tbody>
                 </table>
 
-                {isEditingGrades && hasEdits && (
-                  <div className="profile-actions">
-                    <button className="btn btn-primary" onClick={handleSaveGrades} disabled={saving}>
-                      {saving ? "Saving..." : "Save Grades"}
-                    </button>
-                    <button onClick={() => setEdited({})} disabled={saving} className="btn btn-cancel">
-                      Discard
-                    </button>
-                  </div>
-                )}
               </div>
+
             )}
+
+              {isEditingGrades && hasEdits && (
+                <div className="subjects-actions">
+                  <button className="btn btn-primary" onClick={handleSaveGrades} disabled={saving}>
+                    {saving ? "Saving..." : "Save Grades"}
+                  </button>
+                  <button onClick={() => setEdited({})} disabled={saving} className="btn btn-cancel">
+                    Discard
+                  </button>
+                </div>
+              )}
+
+              {selectedStudent && userRole === "admin" && (
+                <button className="btn btn-edit" onClick={toggleEditingGrades}>
+                  {isEditingGrades ? "Cancel Edit" : "Edit Records"}
+                </button>
+              )}
           </div>
 
           {/* 🔹 Top Stats Cards */}

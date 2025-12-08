@@ -306,8 +306,8 @@ export default function StudentsTab({
       const response = await API.put("/clearance/update", {
         student_id: student.student_id,
         is_cleared: !current,
-        semester: student.semester || "1",
-        academic_year: student.academic_year || "2025-2026"
+        semester: settings.current_semester ,
+        academic_year: settings.current_academic_year
       });
 
       // Update the UI immediately
@@ -726,12 +726,12 @@ export default function StudentsTab({
           <div className="modal-box">
             <h3>{editingStudent ? "Edit Student" : "Add Student"}</h3>
             <div className="modal-grid">
-                <input
-                  type="text"
-                  placeholder="Student ID"
-                  value={form.student_id}
-                  onChange={(e) => handleChange("student_id", e.target.value)}
-                />
+              <input
+                type="text"
+                placeholder="Student ID"
+                value={form.student_id}
+                onChange={(e) => handleChange("student_id", e.target.value)}
+              />
               <input
                 type="text"
                 placeholder="First Name"
@@ -762,20 +762,24 @@ export default function StudentsTab({
                 value={form.section}
                 onChange={(e) => handleChange("section", e.target.value)}
               />
-              <input
-                type="number"
-                placeholder="Year Level"
+              <CustomSelect
+                options={[
+                  { value: 1, label: "1st" },
+                  { value: 2, label: "2nd" },
+                  { value: 3, label: "3rd" },
+                  { value: 4, label: "4th" },
+                ]}
                 value={form.year_level}
-                onChange={(e) => handleChange("year_level", e.target.value)}
+                onChange={(val) => handleChange("year_level", val)}
+                placeholder="Year Level"
               />
-              <div className="full">
-                <CustomSelect
-                  options={programs.map((p) => ({ value: p.program_id, label: p.program_code }))}
-                  value={form.program_id}
-                  onChange={(val) => handleChange("program_id", val)}
-                  placeholder="Select Program"
-                />
-              </div>
+
+              <CustomSelect
+                options={programs.map((p) => ({ value: p.program_id, label: p.program_code }))}
+                value={form.program_id}
+                onChange={(val) => handleChange("program_id", val)}
+                placeholder="Select Program"
+              />
             </div>
             <div className="modal-actions">
               <button className="btn btn-primary" onClick={handleSave}>
@@ -807,7 +811,7 @@ export default function StudentsTab({
               />
             </div>
             <div className="modal-actions">
-              <button className="btn btn-danger" onClick={handleDeleteConfirm}>
+              <button className="btn btn-delete" onClick={handleDeleteConfirm}>
                 Confirm Delete
               </button>
               <button className="btn btn-cancel" onClick={closeDeleteModal}>

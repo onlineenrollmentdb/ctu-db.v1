@@ -497,7 +497,8 @@ exports.addStudent = async (req, res) => {
       year_level,
       student_status,
       program_id,
-      student_id, // optional
+      student_id,
+      section,// optional
     } = req.body;
 
     // Convert numeric values
@@ -513,8 +514,8 @@ exports.addStudent = async (req, res) => {
     const [result] = await db.execute(
       `
       INSERT INTO students
-        (student_id, first_name, middle_name, last_name, email, year_level, student_status, program_id, password)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (student_id, first_name, middle_name, last_name, email, year_level, student_status, program_id, section, password)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         studentIdNum ?? null, // null = auto increment
@@ -525,6 +526,7 @@ exports.addStudent = async (req, res) => {
         year_level,
         student_status,
         programIdNum,
+        section,
         defaultPassword,
       ]
     );

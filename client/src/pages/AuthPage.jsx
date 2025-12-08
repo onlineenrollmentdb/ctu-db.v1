@@ -145,7 +145,7 @@ export default function AuthPage() {
                         ) : (
                             <button
                                 type="button"
-                                className="btn btn-link"
+                                className="btn btn-cancel"
                                 onClick={handleResend}
                                 style={{ padding: 0 }}
                             >

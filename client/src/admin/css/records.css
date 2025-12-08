@@ -97,6 +97,11 @@
   padding: 2rem;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
+.subjects-actions{
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 1rem;
+}
 
 /* Animations */
 @keyframes fadeSlideDown {

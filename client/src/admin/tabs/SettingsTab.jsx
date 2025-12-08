@@ -28,8 +28,6 @@ export default function SettingsTab({
 
   const [editMode, setEditMode] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [previewSettings, setPreviewSettings] = useState(null);
-  const [showShiftModal, setShowShiftModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const { addToast } = useToast();
 
@@ -254,18 +252,6 @@ export default function SettingsTab({
                       Cancel
                     </button>
                   )}
-
-                  {editMode && (
-                    <button
-                      className="btn btn-edit"
-                      onClick={() => {
-                        setPreviewSettings({ ...settings });
-                        setShowShiftModal(true);
-                      }}
-                    >
-                      Shift Semester
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -410,57 +396,6 @@ export default function SettingsTab({
               <button
                 className="btn btn-cancel"
                 onClick={() => setShowConfirmModal(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SHIFT SEMESTER MODAL */}
-      {showShiftModal && previewSettings && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h5>Shift 1st Semester</h5>
-            <p>Update the 1st Semester start and end dates only.</p>
-
-            <div className="mb-3">
-              <label>1st Semester Start:</label>
-              <DatePicker
-                selected={previewSettings.first_sem_start}
-                onChange={(date) =>
-                  setPreviewSettings((prev) => ({ ...prev, first_sem_start: date }))
-                }
-                dateFormat="MMMM dd"
-              />
-            </div>
-
-            <div className="mb-3">
-              <label>1st Semester End:</label>
-              <DatePicker
-                selected={previewSettings.first_sem_end}
-                onChange={(date) =>
-                  setPreviewSettings((prev) => ({ ...prev, first_sem_end: date }))
-                }
-                dateFormat="MMMM dd"
-              />
-            </div>
-
-            <div className="mt-3">
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setSettings(previewSettings);
-                  setPreviewSettings(null);
-                  setShowShiftModal(false);
-                }}
-              >
-                Apply
-              </button>
-              <button
-                className="btn btn-cancel"
-                onClick={() => setShowShiftModal(false)}
               >
                 Cancel
               </button>
