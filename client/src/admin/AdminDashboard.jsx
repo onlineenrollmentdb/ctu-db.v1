@@ -300,6 +300,7 @@ export default function AdminDashboard() {
               role={userRole}
               setStudents={setStudents}
               fetchAllStudents={fetchAllStudents}
+              departments={departments}
               programs={programs}
               programFilter={filterProgram}
               setProgramFilter={setFilterProgram}

@@ -10,6 +10,7 @@ export default function StudentsTab({
   currentUser,
   role,
   programs,
+  departments,
   fetchAllStudents,
   setActiveTab,
   onViewDetails,
@@ -34,6 +35,16 @@ export default function StudentsTab({
   const [clearanceRecords, setClearanceRecords] = useState({});
   const [sortField, setSortField] = useState("first_name");
   const [sortDirection, setSortDirection] = useState("asc");
+
+    // Program editing
+  const [programEditCode, setProgramEditCode] = useState("");
+  const [programEditName, setProgramEditName] = useState("");
+  const [programEditDept, setProgramEditDept] = useState("");
+  const [programEditModal, setProgramEditModal] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [editModeProgram, setEditModeProgram] = useState(null);
+  const [editingProgram, setEditingProgram] = useState(null);
+
 
   // Modal / form states
   const [modalOpen, setModalOpen] = useState(false);
@@ -127,7 +138,7 @@ export default function StudentsTab({
         setClearanceRecords(formattedData);
       } catch (err) {
         console.error("Failed to fetch bulk clearance", err);
-        if (isMounted) addToast("Failed to fetch clearance ❌", "error");
+        if (isMounted) addToast("Failed to fetch clearance", "error");
       }
     };
 
@@ -319,12 +330,12 @@ export default function StudentsTab({
         },
       }));
       addToast(
-        `Clearance ${!current ? "confirmed" : "revoked"} successfully ✅`,
+        `Clearance ${!current ? "confirmed" : "revoked"} successfully`,
         "success"
       );
     } catch (err) {
       console.error(err);
-      addToast("Failed to update clearance ❌", "error");
+      addToast("Failed to update clearance", "error");
     }
   };
 
@@ -349,21 +360,21 @@ export default function StudentsTab({
 
   const handleSave = async () => {
     try {
-      if (!form.program_id) { addToast("Please select a program ❌", "error"); return; }
+      if (!form.program_id) { addToast("Please select a program", "error"); return; }
       let response;
       if (editingStudent) {
         response = await API.put(`admin/students/${editingStudent.student_id}`, form);
         setStudents((prev) => prev.map((s) => s.student_id === editingStudent.student_id ? response.data.student : s));
-        addToast("Student updated successfully ✅", "success");
+        addToast("Student updated successfully", "success");
       } else {
         response = await API.post(`admin/students`, form);
         setStudents((prev) => [...prev, response.data.student]);
-        addToast("Student added successfully ✅", "success");
+        addToast("Student added successfully", "success");
       }
       closeModal();
     } catch (err) {
       console.error(err);
-      addToast("Failed to save student ❌", "error");
+      addToast("Failed to save student", "error");
     }
   };
 
@@ -382,7 +393,7 @@ export default function StudentsTab({
   const handleDeleteConfirm = async () => {
     if (!deleteStudent) return;
     if (deleteInputs.student_id !== deleteStudent.student_id.toString() || deleteInputs.confirm_text.toLowerCase() !== "delete") {
-      addToast("Student ID or confirmation text is incorrect ❌", "error");
+      addToast("Student ID or confirmation text is incorrect", "error");
       return;
     }
     try {
@@ -391,7 +402,7 @@ export default function StudentsTab({
       fetchAllStudents();
       closeDeleteModal();
     } catch {
-      addToast("Failed to delete student ❌", "error");
+      addToast("Failed to delete student", "error");
     }
   };
 
@@ -400,22 +411,25 @@ export default function StudentsTab({
   };
 
   const handleSaveGrades = async () => {
-    if (!selectedSubject) { addToast("No subject selected ❌", "error"); return; }
+    if (!selectedSubject) { addToast("No subject selected", "error"); return; }
     try {
       await Promise.all(
         gradesRecords.map((rec) =>
           API.put(`/grades/student/${rec.student_id}`, { records: [{ subject_section: rec.subject_section, grade: rec.grade === "" ? null : rec.grade }] })
         )
       );
-      addToast("Grades saved successfully ✅", "success");
+      addToast("Grades saved successfully", "success");
       await fetchAllStudents();
       await prepareGradesRecords(selectedSubject);
     } catch (err) {
       console.error(err);
-      addToast("Failed to save grades ❌", "error");
+      addToast("Failed to save grades", "error");
     }
   };
 
+  // -----------------------
+  // Program management
+  // -----------------------
   const handleAddProgram = async () => {
     try {
       const response = await API.post("/programs/add", { program_code: programCode, program_name: programName, department_id: departmentId });
@@ -426,6 +440,28 @@ export default function StudentsTab({
       addToast(err.response?.data?.error || "Something went wrong", "error");
     }
   };
+
+  const handleEditProgram = async () => {
+    if (!editingProgram) return;
+    if (confirmText.toLowerCase() !== "edit") {
+      addToast("Type EDIT to confirm ❌", "error");
+      return;
+    }
+    try {
+      await API.put(`/programs/${editingProgram.program_id}/edit`, {
+        program_code: programEditCode,
+        program_name: programEditName,
+        department_id: programEditDept
+      });
+      addToast("Program updated successfully ✅", "success");
+      setProgramEditModal(false);
+      fetchPrograms();
+    } catch (err) {
+      addToast(err.response?.data?.error || "Failed to update program ❌", "error");
+    }
+  };
+
+
   const renderHeader = () => {
     if (!expandedProgram) return <h1 className="header-main">STUDENT MANAGEMENT</h1>;
     if (expandedProgram && !selectedSection) return (
@@ -479,32 +515,94 @@ export default function StudentsTab({
           &larr;
             Back
           </button> )}
-        {/* Step 1: Programs */}
-        {!expandedProgram && (
-          <>
-          {isAdmin && (
-            <div className="header">
-              <button className="btn btn-primary" onClick={() => setShowAddProgram(true)}>
-                Add Program
-              </button>
-            </div>
-          )}
-          <div className="programs-grid">
-            {programs.map((program) => (
-              <div
-                key={program.program_id}
-                className="program-card"
-                onClick={() => setExpandedProgram(program.program_id)}
-              >
-                <h2>
-                  {program.program_name} ({program.program_code})
-                </h2>
-                <p className="text-gray-600 mt-2">{getProgramCount(program.program_id)} Students</p>
+          {/* Step 1: Programs */}
+          {!expandedProgram && (
+            <>
+              {isAdmin && (
+                <div className="header">
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setShowAddProgram(true)}
+                  >
+                    Add Program
+                  </button>
+
+                  {/* Edit toggle button */}
+                  <button
+                    className="btn btn-edit"
+                    onClick={() => {
+                      if (editModeProgram) setEditModeProgram(null); // exit edit mode if active
+                      else setEditModeProgram({}); // enter edit mode
+                    }}
+                  >
+                    {editModeProgram ? "Exit Edit Mode" : "Edit Programs"}
+                  </button>
+                </div>
+              )}
+
+              <div className="programs-grid">
+                {programs.map((program) => {
+                  const department = departments.find(
+                    (d) => d.department_id === program.department_id
+                  );
+
+                  return (
+                    <div
+                      key={program.program_id}
+                      className={`program-card relative p-4 ${
+                        editModeProgram ? "hover-edit" : ""
+                      }`}
+                      onClick={() => {
+                        if (editModeProgram) return; // disable expansion while editing
+                        if (!expandedProgram) setExpandedProgram(program.program_id);
+                      }}
+                    >
+                      {/* Department Code */}
+                      {department && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "4px",
+                            left: "10px",
+                            fontSize: "10px",
+                            color: "#555",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {department.department_code}
+                        </span>
+                      )}
+
+                      <h2 className="mt-4">
+                        {program.program_name} ({program.program_code})
+                      </h2>
+                      <p className="text-gray-600 mt-2">
+                        {getProgramCount(program.program_id)} Students
+                      </p>
+
+                      {/* Overlay shown only in edit mode */}
+                      {editModeProgram && (
+                        <div
+                          className="edit-overlay"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingProgram(program);
+                            setProgramEditCode(program.program_code);
+                            setProgramEditName(program.program_name);
+                            setProgramEditDept(program.department_id);
+                            setConfirmText("");
+                            setProgramEditModal(true);
+                          }}
+                        >
+                          Edit this Program?
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-          </>
-        )}
+            </>
+          )}
 
         {/* Step 2: Years & Sections */}
         {expandedProgram && !selectedSection && (
@@ -848,23 +946,45 @@ export default function StudentsTab({
                 value={programName}
                 onChange={(e) => setProgramName(e.target.value)}
               />
+              <div className="full">
+                <CustomSelect
+                  options={departments.map((d) => ({
+                    value: d.department_id,
+                    label: `${d.department_code} - ${d.department_name}`, // display as uppercase
+                  }))}
+                  value={departmentId || ""}
+                  onChange={(val) => setDepartmentId(val ? Number(val) : "")}
+                  placeholder="Select Department"
+                />
+              </div>
 
-              <CustomSelect
-                options={[
-                  { value: 1, label: "CoTE" },
-                  { value: 2, label: "CoED" },
-                  { value: 3, label: "BSHM" },
-                  { value: 4, label: "BSFi" },
-                ]}
-                value={departmentId || ""}
-                onChange={(val) => setDepartmentId(val ? Number(val) : "")}
-                placeholder="Select Department"
-              />
             </div>
 
             <div className="modal-actions">
               <button className="btn btn-primary" onClick={handleAddProgram}>Save</button>
               <button className="btn btn-cancel" onClick={() => setShowAddProgram(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {programEditModal && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <h3>Edit Program</h3>
+            <div className="modal-grid">
+              <input type="text" placeholder="Program Code" value={programEditCode} onChange={e => setProgramEditCode(e.target.value)} />
+              <input type="text" placeholder="Program Name" value={programEditName} onChange={e => setProgramEditName(e.target.value)} />
+              <CustomSelect
+                options={departments.map(d => ({ value: d.department_id, label: `${d.department_code} - ${d.department_name}` }))}
+                value={programEditDept}
+                onChange={val => setProgramEditDept(val ? Number(val) : "")}
+                placeholder="Select Department"
+              />
+              <input type="text" placeholder="Type EDIT to confirm" value={confirmText} onChange={e => setConfirmText(e.target.value)} />
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={handleEditProgram}>Save</button>
+              <button className="btn btn-cancel" onClick={() => setProgramEditModal(false)}>Cancel</button>
             </div>
           </div>
         </div>

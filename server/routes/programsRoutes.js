@@ -8,6 +8,7 @@ const programsController = require("../controllers/programsController");
 // --------------------
 router.get("/", programsController.getPrograms);
 router.post("/add", programsController.addProgram);
+router.put("/:program_id/edit", programsController.editProgram);
 
 router.get("/departments", programsController.getDepartments);
 router.get("/departments-programs", programsController.getDepartmentsWithPrograms);

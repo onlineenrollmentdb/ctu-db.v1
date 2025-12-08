@@ -9,6 +9,14 @@
   animation: fadeSlideDown 0.5s ease forwards;
 }
 
+.header{
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  align-items: end;
+}
+
+
 .header-sub {
   font-size: 1.5rem;
   font-weight: 500;
@@ -50,6 +58,7 @@
   padding: 1.5rem;
   margin-top: 3rem;
   justify-items: center;
+  transition: transform 0.2s;
 }
 
 .program-card {
@@ -89,6 +98,27 @@
   color: #555;
 }
 
+.program-card:hover {
+  transform: translateY(-2px);
+}
+
+.edit-overlay {
+  position: absolute;
+  padding-bottom: 1rem;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  color: white;
+  font-weight: bold;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+}
 /* ----------------- YEAR & SECTION CARDS ----------------- */
 .years-grid {
   display: grid;
@@ -181,12 +211,6 @@
 .students-table td{
   font-size: 0.8rem;
 }
-.header{
-  display: flex;
-  flex-direction: row-reverse;
-  margin-bottom: 1rem;
-}
-
 /* ----------------- MODERN ADD/EDIT STUDENT MODAL ----------------- */
 
 .modal-box {

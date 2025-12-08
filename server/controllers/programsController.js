@@ -112,6 +112,37 @@ exports.addProgram = async (req, res) => {
         res.status(500).json({ error: "Failed to add program" });
     }
 };
+// ✅ Edit an existing program
+exports.editProgram = async (req, res) => {
+  try {
+    const programId = Number(req.params.program_id);
+    const { program_code, program_name, department_id } = req.body;
+
+    if (!program_code || !program_name || !department_id) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Check for duplicate program code in other programs
+    const [duplicate] = await db.execute(
+      `SELECT program_id FROM programs WHERE program_code = ? AND program_id != ?`,
+      [program_code, programId]
+    );
+
+    if (duplicate.length > 0) {
+      return res.status(400).json({ error: "Program code already exists." });
+    }
+
+    await db.execute(
+      `UPDATE programs SET program_code = ?, program_name = ?, department_id = ? WHERE program_id = ?`,
+      [program_code, program_name, department_id, programId]
+    );
+
+    res.json({ message: "Program updated successfully" });
+  } catch (error) {
+    console.error("Edit program error:", error);
+    res.status(500).json({ error: "Failed to edit program" });
+  }
+};
 
 // --------------------
 // Get max section for a given program and year
