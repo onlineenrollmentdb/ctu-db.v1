@@ -187,11 +187,27 @@ const handleExportPDF = async () => {
 };
 
 
+const fetchStudentSubjects = async (student_id) => {
+  try {
+    const response = await API.get(`/admin/students/${student_id}/subjects`, {
+      params: {
+        academic_year: settings.current_academic_year,
+        semester: settings.current_semester,
+      }
+    });
+
+    setStudentSubjects(response.data.subjects ?? []);
+  } catch (error) {
+    console.error("Failed to fetch student subjects:", error);
+    setStudentSubjects([]);
+  }
+};
 
 
   // 🔹 View details modal + fetch subjects
 
   const handleViewDetails = async (student) => {
+      await fetchStudentSubjects(student.student_id);
     if (studentDetailsCache[student.student_id]) {
       setSelectedStudent(studentDetailsCache[student.student_id]);
       return;
@@ -429,8 +445,8 @@ const handleExportPDF = async () => {
         <div className="modal-overlay" onClick={handleCloseOutside}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={handleClose}>X</button>
-
-            <h2>Enrollment Details Hayyssss</h2>
+            {console.log(selectedStudent)}
+            <h2>Enrollment Details</h2>
 
             <div className="student-info-grid">
             {/* Profile Picture */}

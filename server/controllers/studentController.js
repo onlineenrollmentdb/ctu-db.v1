@@ -40,10 +40,16 @@ exports.getStudentById = async (req, res) => {
 
   try {
     const [rows] = await db.execute(
-      `SELECT s.*,p.program_id, p.program_code, p.program_name
-        FROM students s
-        LEFT JOIN programs p ON s.program_id = p.program_id
-        WHERE s.student_id = ?`,
+      `SELECT
+        s.*,
+        p.program_id,
+        p.program_code,
+        p.program_name,
+        e.enrollment_id
+      FROM students s
+      LEFT JOIN programs p ON s.program_id = p.program_id
+      LEFT JOIN enrollments e ON s.student_id = e.student_id
+      WHERE s.student_id = ?`,
       [student_id]
     );
 

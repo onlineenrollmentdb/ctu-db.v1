@@ -161,7 +161,7 @@ const EnrollForm = ({
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       {/* Button / Message Area */}
       <div className="enrollment-action-bar">
-        {enrollmentStatus === 1 && isEnrollmentOpen ? (
+        {enrollmentStatus === 1 ? ( 
           <button
             className="btn btn-primary"
             onClick={handleEnroll}

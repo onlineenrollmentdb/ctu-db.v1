@@ -21,43 +21,43 @@ const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
 
 function AppRoutes() {
 
-  return (
-    <Suspense fallback={<div className="loading">Loading...</div>}>
-      <Routes>
+return (
+<Suspense fallback={<div className="loading">Loading...</div>}>
+<Routes>
 
-        {/* PUBLIC ROUTES */}
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+{/* PUBLIC ROUTES */}
+<Route path="/" element={<LoginPage />} />
+<Route path="/signup" element={<SignupPage />} />
+<Route path="/auth" element={<AuthPage />} />
+<Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
-        {/* ADMIN */}
-        <Route
-          path="/admin/dashboard"
-          element={<AdminDashboard />}
-        />
+{/* ADMIN */}
+<Route
+path="/admin/dashboard"
+element={<AdminDashboard />}
+/>
 
-        {/* AUTH ROUTES */}
-        <Route path="/home" element={<Layout><HomePage /></Layout>} />
-        <Route path="/enroll" element={<Layout><EnrollmentPage /></Layout>} />
-        <Route path="/grades" element={<Layout><GradesPage /></Layout>} />
-        <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
+{/* AUTH ROUTES */}
+<Route path="/home" element={<Layout><HomePage /></Layout>} />
+<Route path="/enroll" element={<Layout><EnrollmentPage /></Layout>} />
+<Route path="/grades" element={<Layout><GradesPage /></Layout>} />
+<Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
 
-      </Routes>
-    </Suspense>
-  );
+</Routes>
+</Suspense>
+);
 }
 
 export default function App() {
-  return (
-    <ToastProvider>
-      <AuthProvider>
-        <SettingsProvider>
-          <Router>
-            <AppRoutes />
-          </Router>
-        </SettingsProvider>
-      </AuthProvider>
-    </ToastProvider>
-  );
+return (
+<ToastProvider>
+<AuthProvider>
+<SettingsProvider>
+<Router>
+<AppRoutes />
+</Router>
+</SettingsProvider>
+</AuthProvider>
+</ToastProvider>
+);
 }

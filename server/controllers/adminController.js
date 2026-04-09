@@ -404,10 +404,7 @@ exports.confirmEnrollment = async (req, res) => {
 
         // Get student info
         const [[row]] = await db.execute(
-            `SELECT s.email, s.student_id
-             FROM enrollments e
-             JOIN students s ON s.student_id = e.student_id
-             WHERE e.enrollment_id = ?`,
+            `SELECT * FROM enrollments WHERE enrollment_id = ?`,
             [enrollment_id]
         );
 
